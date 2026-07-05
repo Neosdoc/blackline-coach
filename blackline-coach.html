@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blackline Coach — Poste de commandement</title>
+<style>
+/* ============================================================
+   BLACKLINE COACH v3 — « Poste de commandement »
+   Palette et direction : brief refonte v2 (document militaire FR)
+   ============================================================ */
+:root{
+  --night:#1A1D18;      /* nuit opérationnelle — fond */
+  --tent:#242822;       /* toile de tente — panneaux */
+  --ranger:#4A5240;     /* ranger green — bordures, inactifs */
+  --sand:#C8C2B0;       /* sable délavé — texte principal */
+  --treillis:#8A8676;   /* gris treillis — labels, secondaire */
+  --marking:#E8531F;    /* orange marquage — action, critique */
+  --valid:#5B8266;      /* vert validé — confirmations */
+
+  --font-d:"Saira Condensed","Big Shoulders Display","Arial Narrow","Roboto Condensed","Liberation Sans Narrow","Segoe UI",system-ui,sans-serif;
+  --font-m:"JetBrains Mono","IBM Plex Mono",ui-monospace,"Cascadia Mono","SF Mono",Consolas,"Liberation Mono",monospace;
+  --font-b:"Saira","Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:22px;--s6:30px;
+  --ease:cubic-bezier(.2,.7,.3,1);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto;}}
+body{
+  margin:0;font-family:var(--font-b);font-size:14.5px;line-height:1.5;
+  background:var(--night);color:var(--sand);
+  /* carroyage topo : grille fine 40px + croix de repérage aux intersections 160px */
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cpath d='M75.5 80h10M80.5 75v10' stroke='%23C8C2B0' stroke-opacity='0.12' stroke-width='1'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(0deg, rgba(200,194,176,.038) 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(90deg, rgba(200,194,176,.038) 0 1px, transparent 1px 40px);
+}
+::selection{background:var(--marking);color:var(--night);}
+.app{max-width:560px;margin:0 auto;min-height:100vh;padding-bottom:calc(84px + env(safe-area-inset-bottom));}
+@media(min-width:900px){.app{max-width:640px;}}
+
+/* ---------- typographie ---------- */
+h1,h2,h3{font-family:var(--font-d);text-transform:uppercase;font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance;}
+.num,.mono{font-family:var(--font-m);font-variant-numeric:tabular-nums;}
+.lbl{font-family:var(--font-m);font-size:10.5px;letter-spacing:.08em;color:var(--treillis);text-transform:uppercase;}
+.lbl b{color:var(--sand);font-weight:700;}
+.dim{color:var(--treillis);}
+.mini{font-size:11.5px;color:var(--treillis);margin-top:6px;line-height:1.45;}
+.mini b{color:var(--sand);}
+
+/* ---------- header / masthead ---------- */
+header{
+  position:sticky;top:0;z-index:20;background:var(--night);
+  border-bottom:1px solid var(--ranger);
+  box-shadow:0 6px 18px rgba(0,0,0,.35);
+}
+.classband{
+  font-family:var(--font-m);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--treillis);background:var(--tent);border-bottom:1px solid var(--ranger);
+  padding:4px 14px;display:flex;justify-content:space-between;gap:8px;white-space:nowrap;overflow:hidden;
+}
+.mast{padding:8px 14px 9px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.mast h1{font-size:21px;line-height:1;letter-spacing:.03em;}
+.mast h1 small{display:block;font-family:var(--font-m);font-size:9.5px;font-weight:400;letter-spacing:.14em;color:var(--treillis);margin-top:3px;}
+.gearbtn{
+  font-family:var(--font-d);text-transform:uppercase;font-weight:700;font-size:11.5px;letter-spacing:.06em;
+  background:transparent;color:var(--sand);border:1px solid var(--ranger);border-radius:2px;
+  padding:9px 12px;cursor:pointer;min-height:38px;
+}
+.gearbtn:hover{border-color:var(--sand);}
+.fstat{
+  display:flex;align-items:center;gap:7px;cursor:pointer;
+  font-family:var(--font-m);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+  padding:5px 14px 7px;color:var(--treillis);
+}
+.fstat .dot{width:7px;height:7px;border-radius:50%;background:var(--treillis);flex:0 0 auto;}
+.fstat.ok{color:var(--valid);}.fstat.ok .dot{background:var(--valid);}
+.fstat.warn{color:var(--marking);}.fstat.warn .dot{background:var(--marking);animation:blink 1.6s infinite;}
+.fstat.err{color:var(--marking);}.fstat.err .dot{background:var(--marking);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.35;}}
+@media (prefers-reduced-motion:reduce){.fstat.warn .dot{animation:none;}}
+
+/* ---------- vues ---------- */
+.view{padding:14px 14px 8px;display:none;}
+.view.active{display:block;animation:vin 160ms var(--ease);}
+@keyframes vin{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+@media (prefers-reduced-motion:reduce){.view.active{animation:none;}}
+
+/* ---------- séparateur coté ---------- */
+.ledger{display:flex;align-items:center;gap:8px;margin:20px 0 10px;}
+.ledger:first-child{margin-top:2px;}
+.ledger .tick{width:1px;height:8px;background:var(--ranger);flex:0 0 auto;}
+.ledger .rule{flex:1;height:1px;background:var(--ranger);}
+.ledger .tag{font-family:var(--font-m);font-size:10px;letter-spacing:.1em;color:var(--treillis);white-space:nowrap;text-transform:uppercase;}
+
+/* ---------- panneau à coins techniques ---------- */
+.panel{
+  position:relative;background:var(--tent);border:1px solid var(--ranger);
+  border-radius:2px;padding:13px 14px;margin-bottom:11px;
+}
+.panel::before,.panel::after{content:"";position:absolute;width:10px;height:10px;pointer-events:none;}
+.panel::before{top:-1px;left:-1px;border-top:2px solid var(--sand);border-left:2px solid var(--sand);}
+.panel::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--sand);border-right:2px solid var(--sand);}
+.panel h2{font-size:15px;margin-bottom:7px;color:var(--sand);}
+.panel h2.o{color:var(--marking);}
+.panel.flat::before,.panel.flat::after{display:none;}
+.hrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+
+/* ---------- bande de classification de fiche ---------- */
+.band{
+  font-family:var(--font-m);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--treillis);
+  border-bottom:1px solid var(--ranger);padding-bottom:7px;margin-bottom:9px;
+  display:flex;justify-content:space-between;gap:8px;white-space:nowrap;overflow:hidden;
+}
+
+/* ---------- stats & jauges ---------- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px;}
+.stat{background:var(--tent);border:1px solid var(--ranger);border-radius:2px;padding:9px 11px;}
+.stat .v{font-family:var(--font-m);font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--sand);line-height:1.2;}
+.stat .v small{font-size:11px;font-weight:400;color:var(--treillis);}
+.gauge{display:flex;gap:2px;height:10px;margin-top:7px;}
+.gauge i{flex:1;background:rgba(74,82,64,.55);border-radius:1px;}
+.gauge i.on{background:var(--marking);}
+.gauge i.on.ok{background:var(--valid);}
+
+/* ---------- pastilles ---------- */
+.pill{
+  display:inline-block;font-family:var(--font-m);font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  border:1px solid var(--ranger);color:var(--sand);padding:3px 8px;border-radius:2px;background:var(--night);
+}
+.pill.o{border-color:var(--marking);color:var(--marking);}
+.pill.g{border-color:var(--valid);color:var(--valid);}
+.pill.d{color:var(--treillis);}
+
+/* ---------- cartes jour ---------- */
+.daycard{
+  background:var(--tent);border:1px solid var(--ranger);border-left:3px solid var(--ranger);
+  border-radius:2px;margin-bottom:8px;cursor:pointer;padding:10px 12px;
+  transition:border-color 120ms var(--ease);
+}
+.daycard:hover{border-left-color:var(--sand);}
+.daycard.force{border-left-color:var(--marking);}
+.daycard.rest{border-left-color:var(--valid);cursor:default;opacity:.85;}
+.daycard .d-day{font-family:var(--font-m);font-size:10px;letter-spacing:.08em;color:var(--treillis);text-transform:uppercase;}
+.daycard .d-t{font-family:var(--font-d);text-transform:uppercase;font-weight:700;font-size:15px;margin-top:2px;letter-spacing:.02em;}
+.daycard.force .d-t{color:var(--marking);}
+.daycard .d-sum{font-size:11.5px;color:var(--treillis);margin-top:3px;}
+.daycard .go{font-family:var(--font-m);font-size:10px;color:var(--sand);letter-spacing:.06em;}
+
+/* ---------- tables ---------- */
+table.t{width:100%;border-collapse:collapse;font-size:12.5px;font-family:var(--font-m);font-variant-numeric:tabular-nums;}
+table.t th{
+  background:var(--night);color:var(--treillis);font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:6px 5px;text-align:center;border:1px solid var(--ranger);
+}
+table.t td{border:1px solid var(--ranger);padding:5px 7px;text-align:center;color:var(--sand);}
+table.t td.l{text-align:left;font-family:var(--font-b);}
+tr.hl td{background:rgba(91,130,102,.16);font-weight:700;}
+tr.hl2 td{background:rgba(232,83,31,.13);font-weight:700;}
+.tscroll{overflow-x:auto;}
+
+/* ---------- formulaires ---------- */
+input,select{font-family:inherit;}
+.fld{margin-bottom:10px;}
+.fld label{display:block;font-family:var(--font-m);font-size:10px;letter-spacing:.08em;color:var(--treillis);text-transform:uppercase;margin-bottom:4px;}
+.fld input,.fld select{
+  width:100%;border:1px solid var(--ranger);border-radius:2px;padding:11px 12px;font-size:15px;
+  background:var(--night);color:var(--sand);font-family:var(--font-m);min-height:44px;
+}
+.fld select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238A8676'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--sand);}
+.fld input::placeholder{color:rgba(138,134,118,.6);}
+input:focus-visible,select:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--marking);outline-offset:2px;}
+
+/* ---------- boutons ---------- */
+.btn{
+  font-family:var(--font-d);text-transform:uppercase;font-weight:700;letter-spacing:.05em;
+  border:none;border-radius:2px;padding:13px 14px;font-size:14px;cursor:pointer;width:100%;min-height:46px;
+  transition:transform 120ms var(--ease),filter 120ms var(--ease);
+}
+.btn:active{transform:scale(.985);}
+.btn-p{background:var(--marking);color:var(--night);}
+.btn-p:hover{filter:brightness(1.08);}
+.btn-g{background:var(--valid);color:var(--night);}
+.btn-g:hover{filter:brightness(1.08);}
+.btn-o{background:transparent;border:1px solid var(--ranger);color:var(--sand);}
+.btn-o:hover{border-color:var(--sand);}
+.btnrow{display:flex;gap:8px;}
+.btnrow .btn{flex:1;}
+
+/* ---------- navigation ---------- */
+.nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:30;
+  background:var(--night);border-top:1px solid var(--ranger);
+  display:flex;max-width:560px;margin:0 auto;
+  padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -6px 18px rgba(0,0,0,.4);
+}
+@media(min-width:900px){.nav{max-width:640px;}}
+.nav button{
+  flex:1;border:none;background:none;padding:8px 2px 9px;cursor:pointer;min-height:52px;
+  border-right:1px solid rgba(74,82,64,.5);color:var(--treillis);
+}
+.nav button:last-child{border-right:none;}
+.nav button .code{font-family:var(--font-m);font-size:9px;letter-spacing:.08em;display:block;}
+.nav button .lb{font-family:var(--font-d);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;display:block;margin-top:2px;}
+.nav button.on{color:var(--sand);background:var(--tent);box-shadow:inset 0 2px 0 var(--marking);}
+.nav button.on .code{color:var(--marking);}
+
+/* ---------- fiche d'ordre / séance ---------- */
+.fiche{overflow:hidden;}
+.fiche .ord{font-family:var(--font-m);font-size:10px;color:var(--treillis);letter-spacing:.05em;}
+.fiche h2.title{font-size:19px;margin-top:2px;}
+.exhead{
+  background:var(--night);border:1px solid var(--ranger);border-left:3px solid var(--sand);
+  border-radius:2px;padding:8px 11px;margin:12px 0 4px;
+}
+.exhead.wp{border-left-color:var(--marking);}
+.exhead:first-child{margin-top:2px;}
+.exh-t{font-family:var(--font-d);text-transform:uppercase;font-weight:700;font-size:13.5px;letter-spacing:.02em;}
+.exhead.wp .exh-t{color:var(--marking);}
+.exh-s{font-size:11.5px;color:var(--treillis);margin-top:2px;line-height:1.4;}
+.set{
+  display:flex;align-items:center;gap:10px;background:var(--night);
+  border:1px solid var(--ranger);border-radius:2px;padding:10px 11px;margin-top:6px;min-height:46px;cursor:pointer;
+}
+.set.done{border-color:var(--valid);background:rgba(91,130,102,.10);}
+.set .box{
+  width:22px;height:22px;border-radius:2px;border:1.5px solid var(--ranger);flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;color:transparent;font-size:13px;font-weight:700;
+}
+.set.done .box{background:var(--valid);border-color:var(--valid);color:var(--night);}
+.set .sl{flex:1;font-size:12.5px;font-weight:600;}
+.set .sl b{font-family:var(--font-m);font-variant-numeric:tabular-nums;color:var(--sand);}
+.set.done .sl{text-decoration:line-through;color:var(--treillis);}
+.set.done .sl b{color:var(--treillis);}
+.rest{
+  flex:0 0 auto;background:transparent;border:1px solid var(--ranger);color:var(--marking);
+  font-family:var(--font-m);font-weight:700;font-size:11px;border-radius:2px;padding:8px 10px;cursor:pointer;min-height:36px;
+}
+.rest:hover{border-color:var(--marking);}
+.phase{border-top:1px dashed var(--ranger);padding:8px 0;font-size:12.5px;}
+.phase:first-child{border-top:none;padding-top:2px;}
+.phase b{color:var(--sand);}
+.callout{
+  background:var(--night);border:1px solid var(--ranger);border-left:3px solid var(--marking);
+  border-radius:2px;padding:9px 11px;font-size:11.5px;margin-top:10px;color:var(--sand);
+}
+.callout.v{border-left-color:var(--valid);}
+.callout b{color:var(--sand);}
+.back{
+  font-family:var(--font-m);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--sand);cursor:pointer;margin-bottom:10px;display:inline-block;padding:4px 0;
+}
+.back:hover{color:var(--marking);}
+
+/* ---------- tampon EFFECTUÉ ---------- */
+.stampwrap{position:relative;}
+.stamp{
+  position:absolute;top:50%;left:50%;z-index:5;
+  transform:translate(-50%,-50%) rotate(-8deg);
+  font-family:var(--font-d);font-size:34px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--valid);border:3px double var(--valid);
+  padding:4px 20px 5px;border-radius:2px;opacity:.88;pointer-events:none;
+  text-shadow:0 0 1px rgba(91,130,102,.5);
+  animation:stampin 200ms var(--ease);
+}
+@keyframes stampin{from{transform:translate(-50%,-50%) rotate(-8deg) scale(1.7);opacity:0;}to{transform:translate(-50%,-50%) rotate(-8deg) scale(1);opacity:.88;}}
+@media (prefers-reduced-motion:reduce){.stamp{animation:none;}}
+.ministamp{
+  display:inline-block;font-family:var(--font-d);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--valid);border:1.5px solid var(--valid);border-radius:2px;padding:1px 6px;
+  transform:rotate(-8deg);opacity:.85;flex:0 0 auto;
+}
+
+/* ---------- états vides ---------- */
+.empty{
+  font-family:var(--font-m);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--treillis);
+  text-align:center;padding:26px 14px;border:1px dashed var(--ranger);border-radius:2px;margin-bottom:11px;line-height:1.8;
+}
+
+/* ---------- boutons Achille ---------- */
+.achrow{display:flex;gap:4px;margin-top:9px;}
+.achbtn{
+  flex:1;font-family:var(--font-m);font-variant-numeric:tabular-nums;min-height:44px;
+  border:1px solid var(--ranger);background:var(--night);color:var(--sand);
+  font-size:13px;font-weight:700;cursor:pointer;border-radius:2px;padding:0;
+}
+.achbtn:active{transform:scale(.94);}
+.achbtn.sel{background:var(--marking);border-color:var(--marking);color:var(--night);}
+
+/* ---------- journal ---------- */
+.jitem{background:var(--tent);border:1px solid var(--ranger);border-radius:2px;padding:10px 12px;margin-bottom:8px;}
+.jitem .jh{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.jitem .jt{font-family:var(--font-d);text-transform:uppercase;font-weight:700;font-size:14px;letter-spacing:.02em;}
+.jitem .jt.o{color:var(--marking);}
+.jitem .jd{font-family:var(--font-m);font-size:10.5px;color:var(--treillis);margin-top:3px;letter-spacing:.03em;}
+.jitem .jn{font-size:12px;margin-top:4px;color:var(--sand);}
+.jdel{font-family:var(--font-m);font-size:10px;color:var(--treillis);cursor:pointer;text-transform:uppercase;letter-spacing:.05em;}
+.jdel:hover{color:var(--marking);}
+
+/* ---------- états fichier (écran données) ---------- */
+.filestate{
+  display:flex;align-items:center;gap:8px;font-family:var(--font-m);font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+  border:1px solid var(--ranger);border-radius:2px;padding:9px 11px;color:var(--sand);
+}
+.filestate .dot{width:8px;height:8px;border-radius:50%;background:var(--treillis);flex:0 0 auto;}
+.filestate.ok{border-color:var(--valid);}.filestate.ok .dot{background:var(--valid);}
+.filestate.warn{border-color:var(--marking);}.filestate.warn .dot{background:var(--marking);}
+.snap{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px dashed var(--ranger);padding:9px 0;font-family:var(--font-m);font-size:11.5px;}
+.snap:first-of-type{border-top:none;}
+.snapbtn{
+  font-family:var(--font-d);text-transform:uppercase;font-weight:700;font-size:11px;letter-spacing:.05em;
+  background:transparent;border:1px solid var(--ranger);color:var(--sand);border-radius:2px;padding:8px 12px;cursor:pointer;min-height:36px;
+}
+.snapbtn:hover{border-color:var(--sand);}
+
+/* ---------- chips analyse ---------- */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px;}
+.chips .pill{cursor:pointer;padding:9px 12px;min-height:36px;display:inline-flex;align-items:center;}
+.chips .pill:hover{border-color:var(--sand);}
+
+/* ---------- timer ---------- */
+#timer{position:fixed;left:0;right:0;bottom:0;z-index:60;transform:translateY(130%);transition:transform 220ms var(--ease);}
+#timer.show{transform:translateY(0);}
+@media (prefers-reduced-motion:reduce){#timer{transition:none;}}
+.ti{
+  max-width:560px;margin:0 auto;background:var(--night);color:var(--sand);
+  border:1px solid var(--ranger);border-top:3px solid var(--marking);border-bottom:none;
+  padding:12px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(0,0,0,.55);
+}
+.ti .tt{display:flex;justify-content:space-between;font-family:var(--font-m);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--treillis);}
+.ti .cl{cursor:pointer;padding:2px 6px;}
+.ti .cl:hover{color:var(--marking);}
+.tn{font-family:var(--font-m);font-size:46px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;margin:4px 0 8px;line-height:1;}
+.tn.w{color:var(--marking);}
+.tb{display:flex;gap:8px;margin-top:12px;}
+.tb button{
+  flex:1;border:1px solid var(--ranger);border-radius:2px;padding:11px;min-height:44px;
+  font-family:var(--font-d);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:13px;
+  color:var(--sand);background:transparent;cursor:pointer;
+}
+.tb button.m{background:var(--valid);border-color:var(--valid);color:var(--night);}
+
+/* ---------- modales ---------- */
+.modal{position:fixed;inset:0;background:rgba(26,29,24,.78);z-index:80;display:none;align-items:flex-end;justify-content:center;}
+.modal.show{display:flex;}
+.msheet{
+  background:var(--night);width:100%;max-width:560px;margin:0 auto;
+  border:1px solid var(--ranger);border-bottom:none;border-radius:2px 2px 0 0;
+  padding:0 16px calc(24px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;
+}
+@media(min-width:700px){.modal{align-items:center;}.msheet{border-bottom:1px solid var(--ranger);border-radius:2px;max-height:82vh;}}
+.msheet .mband{
+  font-family:var(--font-m);font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--treillis);
+  border-bottom:1px solid var(--ranger);padding:8px 0;margin:0 -16px 12px;padding-left:16px;padding-right:16px;
+  display:flex;justify-content:space-between;background:var(--tent);position:sticky;top:0;
+}
+.msheet h2{font-size:17px;margin:2px 0 12px;}
+.close-x{cursor:pointer;color:var(--treillis);padding:0 4px;}
+.close-x:hover{color:var(--marking);}
+
+/* ---------- plan (modal projet) ---------- */
+.plan h3{font-family:var(--font-d);text-transform:uppercase;font-size:14px;color:var(--marking);margin:16px 0 5px;letter-spacing:.03em;}
+.plan p{font-size:12.5px;margin:5px 0;color:var(--sand);max-width:62ch;}
+.plan ul{margin:4px 0;padding-left:18px;font-size:12.5px;color:var(--sand);}
+.plan li{margin-bottom:3px;}
+.plan .ref{font-family:var(--font-m);font-size:10px;color:var(--treillis);}
+
+/* ---------- divers ---------- */
+canvas#loadChart{width:100%;height:120px;display:block;}
+.statusline{font-family:var(--font-m);font-size:11px;letter-spacing:.03em;margin-top:7px;min-height:15px;}
+.statusline.ok{color:var(--valid);}
+.statusline.err{color:var(--marking);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="classband"><span id="hb-left">BLACKLINE // SUIVI PERSONNEL // S—</span><span id="hb-right" class="num">—</span></div>
+    <div class="mast">
+      <h1>Blackline Coach<small id="hdr-sub">1500 M · FORCE · HYROX</small></h1>
+      <button class="gearbtn" onclick="App.openProfile()">Profil</button>
+    </div>
+    <div class="fstat" id="fl-chip" role="button" tabindex="0" onclick="App.show('journal')" onkeydown="if(event.key==='Enter')App.show('journal')">
+      <span class="dot"></span><span id="fl-txt">INITIALISATION…</span>
+    </div>
+  </header>
+
+  <div class="view active" id="v-home"></div>
+  <div class="view" id="v-week"></div>
+  <div class="view" id="v-tools"></div>
+  <div class="view" id="v-journal"></div>
+  <div class="view" id="v-coach"></div>
+</div>
+
+<nav class="nav">
+  <button data-v="home" class="on"><span class="code">[PC]</span><span class="lb">Accueil</span></button>
+  <button data-v="week"><span class="code">[SEM]</span><span class="lb">Semaine</span></button>
+  <button data-v="tools"><span class="code">[OUT]</span><span class="lb">Outils</span></button>
+  <button data-v="journal"><span class="code">[JRN]</span><span class="lb">Journal</span></button>
+  <button data-v="coach"><span class="code">[AN]</span><span class="lb">Analyse</span></button>
+</nav>
+
+<!-- timer -->
+<div id="timer"><div class="ti">
+  <div class="tt"><span id="t-name">Repos</span><span class="cl" onclick="Tmr.close()">✕ FERMER</span></div>
+  <div class="tn" id="t-num">0:00</div>
+  <div class="gauge" id="t-gauge"></div>
+  <div class="tb"><button onclick="Tmr.toggle()" id="t-pause">Pause</button><button onclick="Tmr.add(30)">+30 s</button><button class="m" onclick="Tmr.close()">OK</button></div>
+</div></div>
+
+<!-- profile modal -->
+<div class="modal" id="modal"><div class="msheet">
+  <div class="mband"><span>BLACKLINE // FICHE PERSONNEL</span><span class="close-x" onclick="App.closeProfile()">✕</span></div>
+  <h2>Mon profil</h2>
+  <div id="profile-form"></div>
+  <button class="btn btn-p" onclick="App.saveProfile()">Enregistrer</button>
+  <div class="mini" id="store-note"></div>
+</div></div>
+
+<!-- plan modal -->
+<div class="modal" id="modal-plan"><div class="msheet plan">
+  <div class="mband"><span>BLACKLINE // ORDRE D'OPÉRATION // PROJET</span><span class="close-x" onclick="App.closePlan()">✕</span></div>
+  <h2>Le projet Blackline</h2>
+  <div id="plan-body"></div>
+</div></div>
+
+<!-- confirm modal (import / restauration) -->
+<div class="modal" id="modal-confirm"><div class="msheet">
+  <div class="mband"><span id="cf-band">BLACKLINE // CONFIRMATION REQUISE</span><span class="close-x" onclick="Confirm.close()">✕</span></div>
+  <h2 id="cf-title">Confirmation</h2>
+  <div id="cf-body" style="font-size:13px"></div>
+  <div id="cf-btns" style="margin-top:14px"></div>
+</div></div>
+
+<script>
+"use strict";
+/* ---------- utils ---------- */
+function $(id){return document.getElementById(id);}
+function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
+function fmtT(s){s=Math.round(s);var m=Math.floor(s/60),x=s%60;return m+":"+(x<10?"0":"")+x;}
+function paceKm(sp){var s=3600/sp;var m=Math.floor(s/60),x=Math.round(s%60);return m+"'"+(x<10?"0":"")+x+"/km";}
+function secDist(distM,sp){return distM/1000/sp*3600;}
+function fmtSec(s){s=Math.round(s);if(s<60)return s+"″";var m=Math.floor(s/60),x=s%60;return m+"'"+(x<10?"0":"")+x;}
+function r2(x){return Math.round(x/2.5)*2.5;}
+function r125(x){return Math.round(x/1.25)*1.25;}
+function kg(x){return (Math.round(x*10)/10).toString().replace(".",",");}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function p2(n){return (n<10?"0":"")+n;}
+var MOIS=["JAN","FÉV","MAR","AVR","MAI","JUIN","JUIL","AOÛT","SEP","OCT","NOV","DÉC"];
+function fmtMil(ts){var d=new Date(ts);return p2(d.getDate())+" "+MOIS[d.getMonth()]+" "+String(d.getFullYear()).slice(-2)+" — "+p2(d.getHours())+":"+p2(d.getMinutes());}
+function fmtMilD(ts){var d=new Date(ts);return p2(d.getDate())+" "+MOIS[d.getMonth()]+" "+String(d.getFullYear()).slice(-2);}
+function fmtHM(ts){var d=new Date(ts);return p2(d.getHours())+":"+p2(d.getMinutes());}
+function ordNum(ts,letter){var d=new Date(ts);return "ORD "+d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+"/"+(letter||"A");}
+function gauge(frac,ok,n){
+  n=n||12;frac=Math.max(0,Math.min(1,frac||0));var k=Math.round(frac*n),h='<div class="gauge">';
+  for(var i=0;i<n;i++)h+='<i class="'+(i<k?("on"+(ok?" ok":"")):"")+'"></i>';
+  return h+'</div>';
+}
+
+/* ---------- default profile ---------- */
+var DEF={vma:19.5,cs:17.0,fcmax:189,bw:87,squat:110,sdt:150,dc:100,pull:40,dip:40,obj:"4'10",week:8,race:"2026-08-08"};
+var SCHEMA_VERSION=3;
+
+/* ---------- BRIEF DE REPRISE ----------
+   Bloc maintenu par Claude à chaque mise à jour du fichier.
+   L'athlète le copie (Journal → REPRENDRE) et le colle au début d'une
+   nouvelle conversation avec le fichier HTML : rien ne se perd. */
+var BRIEF_VERSION="v3.0 · maj 05/07/2026";
+var BRIEF=[
+"=== BLACKLINE COACH — BRIEF DE REPRISE ("+BRIEF_VERSION+") ===",
+"",
+"PROJET",
+"P1 (en cours, 12 sem) : 1500 m objectif 4'10 (course début août 2026, avant vacances Nyons 12-26/08) + force max concurrente sur squat/SDT/DC/tractions lestées/dips lestés/corde.",
+"P2 (post-course) : Hyrox < 1 h (PB actuel 1h10).",
+"CALENDRIER ACTÉ : entrée dans le programme le lundi 06/07/2026 directement en SEMAINE 8 (base déjà construite les mois précédents, bloc perturbé par la formation EPMS + chaleur). S8 = semaine allégée + TEST 1500 m jeudi 09/07 (recalibrage VMA/allures). S9-S11 = réalisation. S12 = affûtage. COURSE : samedi 08/08/2026, avant vacances Nyons 12-26/08. Dimanche 05/07 = jour 0 (profil, Achille, repos).",
+"Hypertrophie points faibles intégrée en continu : pectoraux, arrière d'épaule, trapèzes, ischios — en accessoires de chaque séance force.",
+"",
+"STRUCTURE HEBDO (6 j + repos dimanche, 1 doublé)",
+"Lun 5h Force A bas du corps + VMA l'après-midi (>=8 h d'écart, repas entre) · Mar sous-seuil (aprem) · Mer 5h Force B poussée (DC + dips + pecs/arrière épaule) · Jeu spécifique 1500 (aprem) · Ven 5h Force C tirage (tractions + corde + trapèzes/arrière épaule) · Sam sortie longue.",
+"Muscu toujours à 5h (contrainte de vie de l'athlète), courses l'après-midi. Bas du corps lourd lundi 5h => ~84 h de fraîcheur avant le spécifique du jeudi. Séquence force->course validée par revue parapluie 2025 (favorise force dynamique bas du corps sur blocs >=5 sem) : ordre optimal, pas un compromis.",
+"MARGE N°1 = volume aérobie Z1 (Casado 1500m elite : le volume facile distingue les spécialistes, pas l'intensité). Vélo Z1 2x/sem (mer + dim) recommandé, coût tendineux nul. TID pyramidale (90% sous seuil).",
+"",
+"RÈGLES FORCE",
+"Étoile squat (sem. impaires) <=> SDT (sem. paires). Top set + back-offs à 90 % du top. %1RM S1->S12 : 80-80-82-75-83-85-87-78-88-90-92-70. Reps 5->2. Back-offs 3->1.",
+"Dips secondaires : charge fixe ~78 % du total (PDC+lest), 4x5 RPE 8 (2x5 en décharge).",
+"Accessoires points faibles : 8-15 reps RPE 8-9, repos 60-90 s. Volume ÷2 en décharge (S4/S8), réduit d'un cran en M3 (S9-11), affûtage S12.",
+"Barres : 1re rép explosive, stop série à ~20 % de perte de vitesse, jamais à l'échec.",
+"Règle du doublé v2 (lundi, ordre inversé le 05/07) : Force A à 5h (debout >=45 min avant barre lourde — rachis au réveil), VMA l'après-midi >=8 h après + repas entre. Si la force du matin sort à RPE>=9 ou Achille >3/10 -> la VMA de l'aprem devient sous-seuil court ou vélo Z2. Forte chaleur l'aprem -> version raccourcie + hydratation.",
+"",
+"GARDE-FOUS",
+"Monotonie Foster < 2 · ACWR 0,8-1,3 · Achille <= 3/10 (tendinopathie droite) — si >3 ou en hausse : rapide->sous-seuil/vélo Z1, squat->tempo léger -20 %.",
+"RENFO ACHILLE (maj 2024) : protocole HSR (heavy slow resistance) 3x/sem >= Alfredson quotidien, meilleure tolérance, fréquence quotidienne inutile (JOSPT 2024 CPG). 3x15 montées mollet lourdes tempo 3s/3s genou tendu+fléchi, les jours de muscu. Antalgique aigu : isométries 4x45s position haute. Pliométrie réintroduite quand Achille <=2/10 stable.",
+"VR (ratio vertical) : à comparer uniquement à allure égale entre séances — une hausse à allure lente est mécanique, pas un signal de fatigue.",
+"",
+"DÉCISIONS PRISES (historique)",
+"- v2 : passage à 3 séances force spécialisées (1-2 levées principales max/séance) + accessoires hypertrophie points faibles + jour de repos strict dimanche + ACWR + splits 1500 + modal Projet.",
+"- v2.1 : coach IA in-app retiré (non fonctionnel) -> tous les ajustements passent par le chat Claude ; l'app garde journal, analyses locales, et ce brief de reprise.",
+"- v2.9 : affichage des séances corrigé — chaque série/répétition montre désormais explicitement reps + charge/allure + son temps de repos, et chaque exercice a un bandeau récap (prescription complète + conseil). Avant, le découpage en lignes cochables masquait reps et repos.",
+"- v2.8 : recherche 2024-2026 intégrée. (a) Achille : passage Alfredson quotidien -> HSR 3x/sem (JOSPT 2024 : équivalent, mieux toléré, fréquence quotidienne inutile). (b) Volume aérobie Z1 identifié comme marge n°1 (Casado 1500m elite) -> vélo Z1 2x/sem mer+dim. (c) Séquence force->course confirmée optimale (umbrella review 2025). Section 6 'Mises à jour science' ajoutée au modal Projet.",
+"- v2.7 : ordre du doublé inversé à la demande (simplicité de vie) : muscu 5h / course aprem sur toute la semaine. Validé scientifiquement : 10-12 h d'écart > aux 6 h requis (Robineau 2016) ; l'altération d'économie de course post-force lourde (~6 h, Doma) est dissipée l'aprem. Vigilances ajoutées : rachis à 5h (45 min debout avant barre lourde) et chaleur des courses d'après-midi (hydratation, séances raccourcies si canicule).",
+"- v2.6 : calendrier verrouillé — départ S8 le 06/07 et non S1 (5 semaines jusqu'à la course du 08/08, le plan 12 semaines complet ne rentrait pas ; la base des mois précédents justifie l'entrée directe en réalisation). Semaine par défaut du profil = 8.",
+"- v2.5 : symptôme 'tout se remet à zéro à la réouverture' traité — la mémoire est désormais TESTÉE réellement au démarrage (écriture + relecture) et l'Accueil affiche en permanence l'état 💾 (vert = ça sauvegarde, orange = ce lecteur ne garde rien, ex. aperçu Fichiers iPhone). Rituel de migration entre versions : Exporter -> Importer.",
+"- v2.4 : saisie Achille corrigée — clavier remplacé par 11 boutons tactiles 0-10 (un tap = enregistré, feedback immédiat, une valeur/jour remplaçable). L'affichage se met à jour avant la sauvegarde pour ne jamais paraître muet.",
+"- v2.3 : règle du doublé formalisée (validée sur Robineau 2016, Rønnestad & Mujika 2014, Doma) — le squat lourd reste le lundi soir, autorégulé, avec soupape top-set-seul les mauvais jours.",
+"- v2.2 : système de mémoire triple couche — stockage Claude (artifact) quand dispo, sinon mémoire du navigateur (localStorage), + export/import backup .json complet (profil + journal + Achille) dans Journal -> 💾.",
+"- v3.0 : refonte 'poste de commandement' — identité visuelle militaire FR (palette nuit opérationnelle/orange marquage, fiches d'ordre numérotées, tampon EFFECTUÉ, jauges segmentées) + persistance double couche : localStorage auto (couche 1) + fichier disque lié via File System Access API avec sauvegarde auto 2 s et indicateur d'état permanent dans le header (couche 2) + snapshots tournants (5, restauration in-app) + import avec écran de confirmation fusion/remplacement + schemaVersion 3 avec migration auto depuis l'ancien format (clés blc:profile/journal/achilles et backups v2.x). Structures de données des séances inchangées. Fallback export/import manuel si l'API fichier n'existe pas (Firefox/Safari/mobile).",
+"",
+"EN ATTENTE / POINTS OUVERTS",
+"- Achille noté 4/10 après le déblocage poussette du 05/07 (6,06 km 6'18/km FC142 31°C RPE4). Protocole actif : note au réveil du 06/07 décide — <=3 : VMA prudente (2 premières @95%) ; >=4 : rapide remplacé par vélo Z2/footing souple, SDT du matin maintenu. Isométries mollet 4x45s en antalgique + Alfredson 2x/j.",
+"- À intégrer quand l'athlète confirme : vélo Z1 30-45' les mercredi + dimanche (marge aérobie n°1, coût Achille nul). Pas encore ajouté comme séance fixe, en attente de son feu vert sur la faisabilité matérielle (home-trainer ?).",
+"- Chaleur : 31°C dès 9h30 le 05/07 — courses d'aprem à gérer (hydratation, ombre, raccourcir si besoin). Acclimatation chaleur = opportunité à structurer.",
+""].join("\n");
+
+/* ---------- program data ---------- */
+var MESO=function(w){return w<=4?"M1 · Accumulation":w<=8?"M2 · Intensification":"M3 · Réalisation";};
+var DELOAD={4:1,8:1,12:1};
+var TOPPCT={1:80,2:80,3:82,4:75,5:83,6:85,7:87,8:78,9:88,10:90,11:92,12:70};
+var REPS={1:5,2:5,3:5,4:5,5:4,6:4,7:3,8:3,9:3,10:2,11:2,12:2};
+var BO={1:3,2:3,3:3,4:2,5:3,6:3,7:3,8:2,9:2,10:2,11:2,12:1};
+var RW={
+1:{vma:{sets:[[6,200,105]],rec:70,note:"vVO2max — régulier"},ss:{sets:[[4,1000,87]],rec:60,note:"pivot aérobie, RPE 6-7"},sp:{sets:[[6,300,100]],rec:120,note:"passerelle allure"},long:{min:55,note:"EF facile + 4×200 progressifs"}},
+2:{vma:{sets:[[8,200,108]],rec:75,note:"densification"},ss:{sets:[[5,1000,87]],rec:60,note:"volume sous-seuil"},sp:{sets:[[6,400,105]],rec:150,note:"approche allure course"},long:{min:60,note:"EF + 4×300 @105%"}},
+3:{vma:{sets:[[6,400,105]],rec:150,note:"VMA longue"},ss:{sets:[[6,1000,87]],rec:60,note:"pic M1"},sp:{txt:"3×(1000 @95% + 400 @105%) · r=1'/R=3'",note:"spécifique combiné"},long:{min:65,note:"aérobie"}},
+4:{vma:{sets:[[6,300,100]],rec:120,note:"réveil (décharge)"},ss:{txt:"20' + 2×400 @ allure 1500",note:"pré-test"},sp:{txt:"⭐ TEST 2000 m max",note:"recale VMA/CS"},long:{min:40,note:"récup @65%"}},
+5:{vma:{sets:[[6,800,95]],rec:120,note:"VMA longue"},ss:{sets:[[6,1000,87]],rec:60,note:"pivot"},sp:{sets:[[8,400,110]],rec:90,note:"lactique"},long:{min:50,note:"EF + 4×200"}},
+6:{vma:{sets:[[5,1000,95]],rec:120,note:"VMA longue"},ss:{sets:[[8,1000,87]],rec:60,note:"pic volume seuil"},sp:{txt:"2×[4×400] @110% · r=1'/R=4'",note:"lactique"},long:{min:50,note:"EF + 4×300"}},
+7:{vma:{txt:"3×(1000 @95% + 600 @100% + 400 @110%)",note:"combiné Canova"},ss:{sets:[[8,1000,87]],rec:60,note:"pic"},sp:{sets:[[5,600,105]],rec:150,note:"lactique long"},long:{min:50,note:"souple"}},
+8:{vma:{sets:[[6,300,100]],rec:120,note:"réveil (décharge)"},ss:{txt:"20' + 2×200 @ allure 1500",note:"pré-test"},sp:{txt:"⭐ TEST 1500 m max",note:"cale l'allure de course"},long:{min:35,note:"récup @65%"}},
+9:{vma:{sets:[[5,600,107]],rec:180,note:"allure course"},ss:{sets:[[6,1000,87]],rec:60,note:"maintien base"},sp:{sets:[[6,400,112]],rec:120,note:"tolérance"},long:{min:40,note:"EF + 4×200"}},
+10:{vma:{sets:[[4,800,107]],rec:180,note:"allure course"},ss:{sets:[[5,1000,95]],rec:120,note:"maintien VMA"},sp:{sets:[[8,300,107]],rec:60,note:"finish"},long:{min:35,note:"souple"}},
+11:{vma:{txt:"3×(200 @115% + 400 @107% + 200 @115%) · R=5'",note:"affûtage vitesse"},ss:{sets:[[4,1000,87]],rec:60,note:"bref"},sp:{txt:"2×(300+200+300) @ allure 800",note:"vitesse"},long:{min:30,note:"+ mobilité"}},
+12:{vma:{txt:"4×300 @ allure 1500 + 2×200 @ allure 800",note:"affûtage"},ss:{txt:"30' @65-70% + 4×200",note:"déblocage"},sp:{txt:"⭐ OBJECTIF 1500 m",note:"jour J"},long:{min:20,note:"ou repos"}},
+};
+
+/* ============================================================
+   PERSISTANCE — double couche (brief v2 §3.1)
+   Couche 1 : localStorage (cache de travail, auto à chaque saisie)
+   Couche 2 : fichier disque lié via File System Access API
+   + snapshots tournants (5) + export/import manuel + schemaVersion
+   ============================================================ */
+var Store={
+  ok:false,
+  init(){
+    try{
+      var k="__blc_probe",v=String(Date.now());
+      localStorage.setItem(k,v);this.ok=localStorage.getItem(k)===v;localStorage.removeItem(k);
+    }catch(e){this.ok=false;}
+  },
+  /* charge : format v3 (blc:data) sinon migration depuis les clés héritées v2.x */
+  load(){
+    if(!this.ok)return null;
+    try{
+      var raw=localStorage.getItem("blc:data");
+      if(raw)return migrate(JSON.parse(raw));
+    }catch(e){}
+    /* migration héritage v2.x : blc:profile / blc:journal / blc:achilles */
+    try{
+      var p=localStorage.getItem("blc:profile"),j=localStorage.getItem("blc:journal"),a=localStorage.getItem("blc:achilles");
+      if(p||j||a){
+        var d={schemaVersion:SCHEMA_VERSION,
+          profile:p?JSON.parse(p):{},
+          journal:j?JSON.parse(j):[],
+          achilles:a?JSON.parse(a):[]};
+        this.save(d); /* écrit le nouveau format ; les anciennes clés restent en place comme filet */
+        return d;
+      }
+    }catch(e){}
+    return null;
+  },
+  save(d){
+    if(!this.ok)return;
+    try{localStorage.setItem("blc:data",JSON.stringify(d));}catch(e){}
+  },
+  /* ---- snapshots tournants : 5 derniers, pris à l'ouverture ---- */
+  snapshots(){
+    if(!this.ok)return[];
+    try{return JSON.parse(localStorage.getItem("blc:snaps")||"[]");}catch(e){return[];}
+  },
+  snapshotBoot(d){
+    if(!this.ok)return;
+    try{
+      var raw=JSON.stringify(d);
+      var arr=this.snapshots();
+      if(arr.length&&arr[0].data===raw)return; /* rien n'a changé depuis le dernier snapshot */
+      arr.unshift({ts:Date.now(),size:raw.length,n:(d.journal||[]).length,data:raw});
+      if(arr.length>5)arr.length=5;
+      localStorage.setItem("blc:snaps",JSON.stringify(arr));
+    }catch(e){}
+  }
+};
+
+/* migration de schéma : toute évolution future du format passe ici, jamais de perte */
+function migrate(d){
+  if(!d||typeof d!=="object")return null;
+  if(!d.schemaVersion){ /* backup v2.x : {app:"blackline-coach",profile,journal,achilles} */
+    d={schemaVersion:SCHEMA_VERSION,profile:d.profile||{},journal:Array.isArray(d.journal)?d.journal:[],achilles:Array.isArray(d.achilles)?d.achilles:[]};
+  }
+  if(d.schemaVersion<SCHEMA_VERSION){d.schemaVersion=SCHEMA_VERSION;}
+  if(!d.profile)d.profile={};
+  if(!Array.isArray(d.journal))d.journal=[];
+  if(!Array.isArray(d.achilles))d.achilles=[];
+  return d;
+}
+
+/* ---- IndexedDB minimal : persiste le handle du fichier lié entre les sessions ---- */
+var IDB={
+  open(){
+    return new Promise(function(res,rej){
+      try{
+        var q=indexedDB.open("blackline",1);
+        q.onupgradeneeded=function(){q.result.createObjectStore("kv");};
+        q.onsuccess=function(){res(q.result);};
+        q.onerror=function(){rej(q.error);};
+      }catch(e){rej(e);}
+    });
+  },
+  async get(k){var db=await this.open();return new Promise(function(res){var t=db.transaction("kv").objectStore("kv").get(k);t.onsuccess=function(){res(t.result||null);};t.onerror=function(){res(null);};});},
+  async set(k,v){var db=await this.open();return new Promise(function(res){var t=db.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=function(){res();};t.onerror=function(){res();};});},
+  async del(k){var db=await this.open();return new Promise(function(res){var t=db.transaction("kv","readwrite");t.objectStore("kv").delete(k);t.oncomplete=function(){res();};t.onerror=function(){res();};});}
+};
+
+/* ---- couche 2 : fichier disque lié (File System Access API) ---- */
+var FileLink={
+  supported:(typeof window!=="undefined")&&("showSaveFilePicker" in window),
+  handle:null,perm:"none",lastSync:null,dirty:false,error:false,timer:null,
+  async init(){
+    if(!this.supported){this.render();return;}
+    try{this.handle=await IDB.get("fileHandle");}catch(e){this.handle=null;}
+    if(this.handle){
+      try{this.perm=await this.handle.queryPermission({mode:"readwrite"});}catch(e){this.perm="prompt";}
+    }
+    this.render();
+  },
+  state(){
+    if(!this.supported||!this.handle)return "unlinked";
+    if(this.perm!=="granted")return "locked";
+    if(this.error)return "error";
+    if(this.dirty)return "dirty";
+    return "synced";
+  },
+  label(){
+    var s=this.state();
+    if(s==="unlinked")return "NON LIÉ — LOCALSTORAGE SEUL";
+    if(s==="locked")return "FICHIER LIÉ — AUTORISATION REQUISE";
+    if(s==="error")return "ERREUR ÉCRITURE FICHIER";
+    if(s==="dirty")return "MODIFS NON SAUVEGARDÉES";
+    return "FICHIER LIÉ — SYNCHRO "+(this.lastSync?fmtHM(this.lastSync):"—");
+  },
+  async link(){
+    if(!this.supported)return;
+    try{
+      var h=await window.showSaveFilePicker({
+        suggestedName:"blackline-data.json",
+        types:[{description:"Données Blackline",accept:{"application/json":[".json"]}}]
+      });
+      this.handle=h;this.perm="granted";this.error=false;
+      try{await IDB.set("fileHandle",h);}catch(e){}
+      await this.write();
+    }catch(e){/* sélection annulée */}
+    this.render();
+  },
+  async grant(){
+    if(!this.handle)return;
+    try{
+      this.perm=await this.handle.requestPermission({mode:"readwrite"});
+      if(this.perm==="granted")await this.write();
+    }catch(e){}
+    this.render();
+  },
+  async unlink(){
+    this.handle=null;this.perm="none";this.lastSync=null;this.dirty=false;this.error=false;
+    clearTimeout(this.timer);
+    try{await IDB.del("fileHandle");}catch(e){}
+    this.render();
+  },
+  /* appelé à chaque persist() : sauvegarde auto sur disque, debounce 2 s */
+  markDirty(){
+    if(!this.supported||!this.handle)return;
+    this.dirty=true;this.render();
+    if(this.perm==="granted"){
+      clearTimeout(this.timer);var s=this;
+      this.timer=setTimeout(function(){s.write();},2000);
+    }
+  },
+  async write(){
+    if(!this.handle)return;
+    clearTimeout(this.timer);
+    try{
+      var w=await this.handle.createWritable();
+      await w.write(JSON.stringify(App.data(),null,1));
+      await w.close();
+      this.dirty=false;this.error=false;this.lastSync=Date.now();
+    }catch(e){
+      this.error=true;
+      if(e&&e.name==="NotAllowedError")this.perm="prompt";
+    }
+    this.render();
+  },
+  flush(){ /* écriture immédiate quand l'app passe en arrière-plan */
+    if(this.dirty&&this.handle&&this.perm==="granted")this.write();
+  },
+  render(){
+    var chip=$("fl-chip"),txt=$("fl-txt");
+    if(!chip)return;
+    var s=this.state();
+    chip.className="fstat "+(s==="synced"?"ok":s==="unlinked"?"":s==="error"?"err":"warn");
+    if(txt)txt.textContent=this.label();
+    var card=$("data-file-card");
+    if(card)card.innerHTML=App.fileCardHTML();
+  }
+};
+
+/* ============================================================ */
+var App={
+  P:Object.assign({},DEF),
+  journal:[],
+  achilles:[],
+  cur:null,
+  _staged:null,
+
+  data(){
+    return {schemaVersion:SCHEMA_VERSION,app:"blackline-coach",version:BRIEF_VERSION,
+      updated:new Date().toISOString(),profile:this.P,journal:this.journal,achilles:this.achilles};
+  },
+
+  async boot(){
+    Store.init();
+    var d=Store.load();
+    /* filet héritage : anciennes données rangées dans le stockage artifact Claude (v2.2-2.9) */
+    if(!d&&typeof window!=="undefined"&&window.storage&&typeof window.storage.get==="function"){
+      try{
+        var p=await window.storage.get("profile"),j=await window.storage.get("journal"),a=await window.storage.get("achilles");
+        if((p&&p.value)||(j&&j.value)||(a&&a.value)){
+          d=migrate({profile:p&&p.value?JSON.parse(p.value):{},journal:j&&j.value?JSON.parse(j.value):[],achilles:a&&a.value?JSON.parse(a.value):[]});
+          Store.save(d);
+        }
+      }catch(e){}
+    }
+    if(d){
+      this.P=Object.assign({},DEF,d.profile);
+      this.journal=d.journal;
+      this.achilles=d.achilles;
+    }
+    Store.snapshotBoot(this.data());
+    await FileLink.init();
+    this.renderHeader();
+    this.renderHome();
+    document.querySelectorAll(".nav button").forEach(function(b){b.onclick=function(){App.show(b.getAttribute("data-v"));};});
+    document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")FileLink.flush();});
+    window.addEventListener("beforeunload",function(e){
+      if(FileLink.handle&&FileLink.dirty){e.preventDefault();e.returnValue="";}
+    });
+  },
+  persist(){
+    Store.save(this.data());
+    FileLink.markDirty();
+    this.renderHeader();
+  },
+  renderHeader(){
+    var l=$("hb-left"),r=$("hb-right");
+    if(l)l.textContent="BLACKLINE // SUIVI PERSONNEL // S"+this.P.week;
+    if(r)r.textContent=fmtMil(Date.now());
+  },
+  show(v){
+    document.querySelectorAll(".view").forEach(function(x){x.classList.remove("active");});
+    $("v-"+v).classList.add("active");
+    document.querySelectorAll(".nav button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-v")===v);});
+    if(v==="home")this.renderHome();
+    if(v==="week")this.renderWeek();
+    if(v==="tools")this.renderTools();
+    if(v==="journal")this.renderJournal();
+    if(v==="coach")Coach.render();
+    window.scrollTo(0,0);
+  },
+
+  /* ---- helpers ---- */
+  pace(pct){return paceKm(this.P.vma*pct/100);},
+  repTime(dist,pct){return fmtSec(secDist(dist,this.P.vma*pct/100));},
+  bb(one,w){var t=r2(one*TOPPCT[w]/100);return[t,r2(t*0.9)];},
+  wt(add,w){var tot=(this.P.bw+add)*TOPPCT[w]/100;return[Math.max(0,r125(tot-this.P.bw)),Math.max(0,r125(tot*0.9-this.P.bw))];},
+  /* volume des accessoires hypertrophie selon la phase : décharge = ½ (arrondi haut), M3 = maintenance (Bickel 2011), sinon plein */
+  accN(w,base){ if(DELOAD[w])return Math.max(1,Math.ceil(base/2)); if(w>=9)return Math.max(2,base-1); return base; },
+
+  /* ---- HOME ---- */
+  renderHome(){
+    var P=this.P,w=P.week;
+    this.renderHeader();
+    var h="";
+    if(!Store.ok){
+      h+='<div class="panel" style="border-color:var(--marking)"><h2 class="o">⚠ Mémoire navigateur indisponible</h2>'
+        +'<div style="font-size:12.5px">Ce lecteur ne conserve <b>rien</b> entre deux ouvertures (typique de l\'aperçu Fichiers iPhone). '
+        +'Ouvre le fichier dans un vrai navigateur, ou en dépannage : <b>Journal → EXPORTER</b> avant de fermer, <b>IMPORTER</b> en rouvrant.</div></div>';
+    }
+    var dleft=null;
+    if(P.race){var dd=Math.ceil((new Date(P.race+"T20:00:00").getTime()-Date.now())/864e5);if(!isNaN(dd))dleft=dd;}
+    h+='<div class="panel fiche"><div class="band"><span>OBJECTIF PRIORITAIRE // '+MESO(w).toUpperCase()+'</span><span class="num">'+fmtMilD(Date.now())+'</span></div>'
+      +'<div class="hrow"><div><div class="lbl">Objectif 1500 m</div>'
+      +'<div class="num" style="font-size:34px;font-weight:700;color:var(--marking);line-height:1.15">'+esc(P.obj)+'</div></div>'
+      +'<div style="text-align:right"><span class="pill o">SEMAINE '+w+'/12</span>'
+      +(dleft!=null&&dleft>=0?' <span class="pill">J−'+dleft+'</span>':'')
+      +'</div></div>'
+      +'<div class="mini">Puis : <b>Hyrox &lt; 1 h</b> · hypertrophie points faibles intégrée en continu.</div></div>';
+    var fw=this.fosterWeek(), ac=Coach.acwr(), m=Coach.metrics();
+    var chScale=m.prevL>0?m.prevL*1.5:600;
+    var acOK=ac!=null&&ac>=0.8&&ac<=1.3;
+    h+='<div class="grid2">'
+      +'<div class="stat"><div class="lbl">VMA</div><div class="v">'+kg(P.vma)+' <small>km/h</small></div></div>'
+      +'<div class="stat"><div class="lbl">CS — vitesse critique</div><div class="v">'+kg(P.cs)+' <small>km/h</small></div></div>'
+      +'<div class="stat"><div class="lbl">CHG — Foster 7 j</div><div class="v">'+fw.load+' <small>UA</small></div>'+gauge(fw.load/chScale,false)+'</div>'
+      +'<div class="stat"><div class="lbl">ACWR — 7 j / 28 j</div><div class="v" style="color:'+(ac==null?"var(--treillis)":acOK?"var(--valid)":"var(--marking)")+'">'+(ac==null?"—":kg(ac))+'</div>'+(ac==null?'':gauge(ac/2,acOK))+'</div>'
+      +'</div>';
+    var ach=this.lastAch();
+    var today=ach&&ach.when==="auj."?ach.score:null;
+    h+='<div class="panel"><div class="hrow"><h2 style="margin:0">Achille — douleur du jour</h2>'
+      +(ach?'<span class="pill '+(ach.score<=2?'g':ach.score<=4?'':'o')+'">'+ach.score+'/10 · '+ach.when+'</span>':'<span class="pill d">non suivi</span>')
+      +'</div><div class="achrow">';
+    for(var ai=0;ai<=10;ai++)h+='<button class="achbtn'+(today===ai?' sel':'')+'" onclick="App.logAch('+ai+')">'+ai+'</button>';
+    h+='</div><div class="mini">'+(today!=null?'✓ Noté aujourd\'hui — un tap remplace la valeur du jour.':'Un tap = enregistré. Une valeur par jour.')+' &gt;3/10 ou en hausse → adaptation auto (course &amp; squat). Renfo tendon : HSR 3×/sem (voir Projet).</div></div>';
+    h+='<div class="panel" style="cursor:pointer" onclick="App.openPlan()" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\')App.openPlan()"><div class="hrow"><h2 style="margin:0">Le projet — architecture &amp; science</h2><span class="go num" style="font-size:11px;color:var(--sand)">VOIR ›</span></div>'
+      +'<div class="mini">P1 : 1500 m + force max spécialisée (SBD · tractions · dips · corde) + points faibles (pecs, arrière d\'épaule, trapèzes, ischios) → P2 : Hyrox &lt; 1 h. 6 j/sem, 1 doublé, anti-surentraînement Foster/ACWR.</div></div>';
+    h+='<div class="ledger"><span class="tag">Cette semaine — S'+w+'</span><span class="rule"></span><span class="tick"></span></div>';
+    h+=this.weekMini(w);
+    h+='<div class="panel" style="border-left:3px solid var(--marking)"><h2>Analyse</h2>'
+      +'<div style="font-size:12.5px;color:var(--treillis)">Charge 7 j, ACWR, monotonie &amp; strain (Foster), Achille, top sets à venir — calculé en direct depuis ton journal. 100 % local, zéro connexion.</div>'
+      +'<button class="btn btn-o" style="margin-top:10px" onclick="App.show(\'coach\')">Ouvrir l\'analyse</button></div>';
+    $("v-home").innerHTML=h;
+  },
+  weekMini(w){
+    var days=this.week(w),out="";
+    days.forEach(function(d){
+      var cls=d.kind==="force"?"force":d.kind==="rest"?"rest":"";
+      out+='<div class="daycard '+cls+'" '+(d.kind==="rest"?'':'onclick="App.openSession(\''+d.id+'\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\')App.openSession(\''+d.id+'\')"')+'>'
+        +'<div class="hrow"><div><div class="d-day">'+d.day+'</div><div class="d-t">'+d.title+'</div></div>'
+        +(d.kind==="rest"?'':'<span class="go">OUVRIR ›</span>')+'</div>'
+        +(d.sum?'<div class="d-sum">'+d.sum+'</div>':'')+'</div>';
+    });
+    return out;
+  },
+
+  /* semaine type : 6 jours d'entraînement + 1 repos, Lundi doublé.
+     3 séances de force SPÉCIALISÉES (1-2 levées principales max chacune, Rhea/Blagrove) :
+     A = bas du corps (squat ⇄ SDT) + ischios · B = poussée (DC + dips) + pecs/arrière épaule · C = tirage (tractions + corde) + trapèzes/arrière épaule */
+  week(w){
+    var run=RW[w], P=this;
+    function runSum(s){ if(s.txt)return s.txt; var b=s.sets[0]; return b[0]+" × "+b[1]+" m @ "+b[2]+"% — "+P.repTime(b[1],b[2])+" · récup "+fmtSec(s.rec); }
+    var fa=this.forceA(w), fb=this.forceB(w), fc=this.forceC(w);
+    return [
+      {id:"forceA",day:"Lundi · 5 h",title:"Force A — Bas du corps",kind:"force",sum:fa.sum,data:fa,cat:"force",rtitle:"Force A · Bas du corps",letter:"A"},
+      {id:"vma",day:"Lundi · après-midi (≥ 8 h après)",title:"VMA",kind:"run",sum:runSum(run.vma),data:run.vma,cat:"run",rtitle:"VMA",letter:"B"},
+      {id:"ss",day:"Mardi · après-midi",title:"Sous-seuil",kind:"run",sum:runSum(run.ss),data:run.ss,cat:"run",rtitle:"Sous-seuil",letter:"C"},
+      {id:"forceB",day:"Mercredi · 5 h",title:"Force B — Poussée",kind:"force",sum:fb.sum,data:fb,cat:"force",rtitle:"Force B · Poussée",letter:"D"},
+      {id:"sp",day:"Jeudi · après-midi",title:"Spécifique 1500",kind:"run",sum:runSum(run.sp),data:run.sp,cat:"run",rtitle:"Spécifique",letter:"E"},
+      {id:"forceC",day:"Vendredi · 5 h",title:"Force C — Tirage",kind:"force",sum:fc.sum,data:fc,cat:"force",rtitle:"Force C · Tirage",letter:"F"},
+      {id:"long",day:"Samedi",title:"Sortie longue",kind:"run",sum:run.long.min+"' facile · "+run.long.note,data:run.long,cat:"long",rtitle:"Sortie longue",letter:"G"},
+      {id:"rest",day:"Dimanche",title:"Repos complet",kind:"rest",sum:"Option : vélo Z1 30-45′ ou piscine souple (zéro impact, volume aérobie bonus) + HSR Achille"}
+    ];
+  },
+
+  /* FORCE A — Bas du corps : squat (sem. impaires) ⇄ SDT (sem. paires) + point faible ischios */
+  forceA(w){
+    if(w===12)return{sum:"Affûtage : squat léger 2×3 @ 70 % + mobilité",rest:120,ex:[
+      {r:"Affûtage",n:"Squat léger",d:"2×3 @ "+kg(r2(this.P.squat*0.7))+" kg — vitesse maximale",x:"objectif : rester affûté sans fatigue",rest:120},
+      {r:"Mobilité",n:"Hanches · chevilles · mollets",d:"10′ souple + Alfredson",rest:0}]};
+    var odd=w%2===1,r=REPS[w],bo=BO[w];
+    var st=odd?"Squat":"Soulevé de terre", one=odd?this.P.squat:this.P.sdt, L=this.bb(one,w);
+    var ex=[];
+    ex.push({r:"Principal",n:st,d:"top set "+r+" @ "+kg(L[0])+" kg + "+bo+"×"+r+" @ "+kg(L[1])+" kg",x:"chaque rép explosive · stop série si la barre ralentit (~20 % de perte de vitesse)",rest:180});
+    if(odd){
+      ex.push({r:"Supplémentaire",n:"SDT roumain",d:this.accN(w,3)+"×8 @ RPE 7-8",x:"charnière lourde = 1ʳᵉ dose ischios",rest:120});
+      ex.push({r:"Point faible · Ischios",n:"Leg curl assis (ou glissé)",d:this.accN(w,3)+"×10-12 @ RPE 8-9",x:"genou fléchi — complète le SDT roumain (hanche)",rest:75});
+    } else {
+      ex.push({r:"Supplémentaire",n:"Squat tempo 3-0-3",d:this.accN(w,3)+"×5 @ RPE 7",x:"pattern squat entretenu à bas coût",rest:120});
+      ex.push({r:"Point faible · Ischios",n:"Nordic curl excentrique",d:this.accN(w,3)+"×5-6 (excentrique 4″)",x:"protection ischios pour le 1500 — progressif, pas à l'échec",rest:90});
+    }
+    ex.push({r:"Tronc",n:"Gainage anti-extension",d:"3×40″ (roulette / dead-bug lesté)",rest:60});
+    return{sum:"① "+st+" top "+kg(L[0])+" kg · ② ischios (point faible) · ~84 h avant le spécifique",ex:ex,rest:180};
+  },
+
+  /* FORCE B — Poussée : DC principal + dips lestés + points faibles pecs & arrière d'épaule */
+  forceB(w){
+    if(w===12)return{sum:"Affûtage : DC léger 2×3 @ 70 % — vitesse",rest:120,ex:[
+      {r:"Affûtage",n:"Développé couché léger",d:"2×3 @ "+kg(r2(this.P.dc*0.7))+" kg — vitesse maximale",rest:120},
+      {r:"Épaules",n:"Face pull léger",d:"2×15",rest:60}]};
+    var r=REPS[w],bo=BO[w],L=this.bb(this.P.dc,w);
+    var dl=Math.max(0,r125((this.P.bw+this.P.dip)*0.78-this.P.bw)),dTxt=dl>0?"+"+kg(dl)+" kg":"PDC";
+    var ex=[];
+    ex.push({r:"Principal",n:"Développé couché",d:"top set "+r+" @ "+kg(L[0])+" kg + "+bo+"×"+r+" @ "+kg(L[1])+" kg",x:"1ʳᵉ rép explosive · pause poitrine sur le top",rest:180});
+    ex.push({r:"Secondaire",n:"Dips lestés",d:(DELOAD[w]?2:4)+"×5 @ "+dTxt+" (RPE 8)",x:"2ᵉ levée de la séance — force, pas d'échec, ajuste le lest au RPE",rest:150});
+    ex.push({r:"Point faible · Pectoraux",n:"Développé incliné haltères",d:this.accN(w,3)+"×8-10 @ RPE 8",x:"étirement complet en bas, tempo contrôlé",rest:90});
+    ex.push({r:"Point faible · Pectoraux",n:"Écartés poulie (ou haltères)",d:this.accN(w,2)+"×12-15 @ RPE 9",x:"isolation près de l'échec — l'hypertrophie se joue ici",rest:60});
+    ex.push({r:"Point faible · Arrière d'épaule",n:"Face pull",d:this.accN(w,3)+"×15 @ RPE 9",x:"coudes hauts, rotation externe finale",rest:60});
+    return{sum:"① DC top "+kg(L[0])+" kg · ② dips "+dTxt+" · pecs + arrière d'épaule",ex:ex,rest:180};
+  },
+
+  /* FORCE C — Tirage : tractions lestées + corde + points faibles trapèzes & arrière d'épaule */
+  forceC(w){
+    if(w===12)return{sum:"Affûtage : tractions PDC souples + mobilité",rest:90,ex:[
+      {r:"Affûtage",n:"Tractions poids de corps",d:"3×5 explosives, loin de l'échec",rest:90},
+      {r:"Mobilité",n:"Épaules · thoracique",d:"10′",rest:0}]};
+    var r=REPS[w],bo=BO[w],Wp=this.wt(this.P.pull,w);
+    var ex=[];
+    ex.push({r:"Principal",n:"Tractions lestées",d:"top set "+r+" @ +"+kg(Wp[0])+" kg + "+bo+"×"+r+" @ +"+kg(Wp[1])+" kg",x:"1ʳᵉ rép explosive, poitrine à la barre",rest:180});
+    ex.push({r:"Secondaire",n:"Corde — montées sans élan",d:"4× montée sans les jambes (lestée si &lt; RPE 7)",x:"force-endurance de préhension — prépare aussi P3",rest:150});
+    ex.push({r:"Point faible · Trapèzes",n:"Shrugs haltères lourds",d:this.accN(w,3)+"×10-12 @ RPE 8-9",x:"pause 1″ en haut, amplitude complète",rest:90});
+    ex.push({r:"Point faible · Arrière d'épaule",n:"Oiseau buste penché",d:this.accN(w,3)+"×12-15 @ RPE 9",x:"léger, strict, brûlure acceptée",rest:60});
+    ex.push({r:"Santé coude",n:"Curl marteau",d:"2×10 @ RPE 7",x:"protège coudes/avant-bras face au volume corde + tractions",rest:60});
+    return{sum:"① Tractions top +"+kg(Wp[0])+" kg · ② corde · trapèzes + arrière d'épaule",ex:ex,rest:180};
+  },
+
+  /* ---- WEEK ---- */
+  renderWeek(){
+    var w=this.P.week;
+    var h='<div class="panel"><div class="hrow"><h2 style="margin:0">Semaine '+w+' — '+MESO(w)+'</h2>'
+      +'<span class="pill '+(DELOAD[w]?"o":"g")+'">'+(DELOAD[w]?"Décharge":"Charge")+'</span></div>'
+      +'<div class="fld" style="margin-top:10px"><label>Changer de semaine</label><select onchange="App.setWeek(this.value)">';
+    for(var i=1;i<=12;i++)h+='<option value="'+i+'"'+(i===w?" selected":"")+'>Semaine '+i+' — '+MESO(i)+'</option>';
+    h+='</select></div>'
+      +'<div class="mini">Répartition : dur Lun (doublé) &amp; Jeu · modéré Mar/Mer/Ven · facile Sam · repos Dim. Bas du corps lourd collé à la VMA → 72 h de fraîcheur avant le spécifique.</div></div>';
+    h+=this.weekMini(w);
+    $("v-week").innerHTML=h;
+  },
+  setWeek(v){this.P.week=parseInt(v,10);this.persist();this.renderWeek();this.renderHome();},
+
+  /* ---- SESSION RUNNER ---- */
+  openSession(id){
+    var d=this.week(this.P.week).filter(function(x){return x.id===id;})[0];
+    if(!d)return;
+    this.cur=d;
+    this.show("week");
+    var host=$("v-week");
+    host.innerHTML='<span class="back" onclick="App.renderWeek()">‹ Retour semaine</span>'
+      +'<div class="panel fiche"><div class="band"><span>BLACKLINE // SUIVI PERSONNEL // S'+this.P.week+'</span><span class="ord num">'+ordNum(Date.now(),d.letter)+'</span></div>'
+      +'<div class="lbl">'+d.day+'</div><h2 class="title'+(d.kind==="force"?" o":"")+'" style="'+(d.kind==="force"?"color:var(--marking)":"")+'">'+d.rtitle+'</h2></div>';
+    host.innerHTML+='<div class="panel"><h2>Échauffement</h2>'+(d.cat==="force"?this.warmForce():this.warmRun(d.cat))+'</div>';
+    var wrap=el("div","panel");
+    wrap.innerHTML='<h2>Séance</h2>';
+    var setsHost=el("div");
+    this.buildSets(setsHost,d);
+    wrap.appendChild(setsHost);
+    if(d.cat!=="force")wrap.innerHTML+='<div class="callout">Allure régulière, contrôle l\'intensité. Achille : au moindre signal, on réduit.</div>';
+    else{
+      wrap.innerHTML+='<div class="callout">Levées principales : charge pour <b>RPE 8</b> (≈ 2 reps en réserve), coupe si la barre ralentit (~20 % de perte de vitesse). Pas d\'échec sur les barres.</div>'
+        +'<div class="callout v">Accessoires <b>points faibles</b> : là, on va chercher <b>RPE 8-9</b> (0-1 rep en réserve) — c\'est la proximité de l\'échec qui déclenche l\'hypertrophie, pas la charge. Repos courts 60-90″.</div>';
+      if(d.id==="forceA")wrap.innerHTML+='<div class="callout"><b>Muscu à 5 h :</b> sois debout <b>≥ 45′ avant la barre lourde</b> (disques hydratés au réveil = rachis vulnérable, surtout au SDT) — échauffement rallongé, café OK. VMA l\'après-midi <b>≥ 8 h après</b> + repas glucides/protéines entre les deux (Robineau 2016). À 10-12 h d\'écart, l\'économie de course altérée par le lourd (Doma) est dissipée.</div>'
+        +'<div class="callout v"><b>Règle du doublé (v2) :</b> si la force du matin est sortie très coûteuse (RPE ≥ 9) ou si l\'Achille est &gt; 3/10 → la VMA de l\'après-midi devient <b>sous-seuil court ou vélo Z2</b>. Forte chaleur l\'aprem → version raccourcie + hydratation, plutôt qu\'annulation.</div>';
+    }
+    host.appendChild(wrap);
+    host.innerHTML+='<div class="panel"><h2>Retour au calme</h2><div class="phase">'
+      +(d.cat==="force"?'5 min marche/vélo + étirements légers. <b>Renfo Achille (HSR)</b> les jours de muscu : 3×15 montées de mollet lourdes, tempo 3 s montée / 3 s descente, genou tendu puis fléchi — 3×/sem suffit (JOSPT 2024).':'10-15 min footing très lent + mobilité douce.')+'</div></div>';
+    host.appendChild(this.bilanCard(d));
+    Sets.wire();
+  },
+  warmRun(cat){
+    if(cat==="long")return '<div class="phase"><b>Intégré</b> — 10 premières minutes en footing progressif 60→70 % VMA ('+this.pace(60)+' → '+this.pace(70)+') + 4-5 gammes légères.</div>';
+    return '<div class="phase"><b>1 · Footing 15-20 min</b> — progressif 60→72 % ('+this.pace(60)+' → '+this.pace(72)+').</div>'
+      +'<div class="phase"><b>2 · Gammes sagittales 6 min</b> — balancers, montées de genoux, talons-fesses, griffés, A/B-skips + dead-bug 30″.</div>'
+      +'<div class="phase"><b>3 · Lignes droites 6-8 min</b> — 4-5 × 100-120 m, les 2 dernières plus rapides que l\'allure. Récup marche. Départ 2-3′ après.</div>';
+  },
+  warmForce(){
+    return '<div class="phase"><b>1 · Général 5 min</b> — vélo/rameur (zéro impact — Achille).</div>'
+      +'<div class="phase"><b>2 · Mobilité 4 min</b> — cheville, hanche 90/90, air squats, cossack, thoracique.</div>'
+      +'<div class="phase"><b>3 · Activation 3 min</b> — dead-bug/bird-dog (bracing), monster-walks, goblet tempo 1×5.</div>'
+      +'<div class="phase"><b>4 · Séries d\'approche</b> — reps décroissantes jusqu\'à la série de travail (barre → 50 → 65 → 77,5 % → top).</div>';
+  },
+  buildSets(host,d){
+    var items=[],self=this;
+    if(d.cat==="force"){
+      d.data.ex.forEach(function(e){
+        /* bandeau récap de l'exercice : nom + prescription complète + conseil */
+        var wp=/Point faible/.test(e.r);
+        items.push({head:true,wp:wp,lbl:'<b>'+e.r+'</b> — '+e.n,sub:e.d+(e.x?' · '+e.x:'')});
+        if(/top set/.test(e.d)){
+          var tm=/top set\s*(\d+)\s*@\s*\+?([0-9,]+)\s*kg/.exec(e.d);
+          var bm=/\+\s*(\d+)×(\d+)\s*@\s*\+?([0-9,]+)/.exec(e.d);
+          var topR=tm?tm[1]:"?",topW=tm?tm[2]:"";
+          items.push({lbl:"Top set — <b>"+topR+" reps @ "+topW+" kg</b>",rest:e.rest});
+          if(bm){var nb=parseInt(bm[1],10),br=bm[2],bw=bm[3];
+            for(var k=1;k<=nb;k++)items.push({lbl:"Back-off "+k+"/"+nb+" — "+br+" reps @ "+(/tract/i.test(e.n)?"+":"")+bw+" kg",rest:e.rest});}
+        } else {
+          var m=/(\d+)\s*×\s*([0-9\-–]+)\s*(″|s\b|sec)?([^@]*)(@[^·]*)?/.exec(e.d);
+          var nser=m?parseInt(m[1],10):1, reps=m?m[2].trim():"", isSec=!!(m&&m[3]), tail=m&&m[5]?m[5].trim():"";
+          var unit=isSec?" s (tenue)":" reps";
+          for(var j=1;j<=nser;j++)items.push({lbl:"Série "+j+"/"+nser+" — <b>"+reps+unit+"</b>"+(tail?" "+tail:""),rest:e.rest});
+        }
+      });
+    } else if(d.cat==="long"){
+      items.push({head:true,lbl:'<b>Sortie longue</b>',sub:d.data.min+"' facile · "+d.data.note});
+      items.push({lbl:"<b>"+d.data.min+" min</b> footing facile ("+this.pace(72)+"-"+this.pace(75)+")",rest:0});
+      items.push({lbl:d.data.note,rest:0});
+    } else {
+      var s=d.data;
+      if(s.txt){ items.push({head:true,lbl:'<b>Séance spécifique</b>',sub:s.txt+(s.note?' · '+s.note:'')}); items.push({lbl:s.txt,rest:s.rec||120}); }
+      else {
+        var b=s.sets[0], n=b[0], dist=b[1], pct=b[2];
+        items.push({head:true,lbl:'<b>'+n+' × '+dist+' m @ '+pct+'% VMA</b>',sub:'objectif '+self.repTime(dist,pct)+'/rép · récup '+fmtSec(s.rec)+' entre chaque'+(s.note?' · '+s.note:'')});
+        for(var i=1;i<=n;i++)items.push({lbl:"Rép "+i+"/"+n+" — <b>"+dist+" m</b> en "+self.repTime(dist,pct)+" (@ "+pct+"%)",rest:(i<n?s.rec:0)});
+      }
+    }
+    items.forEach(function(it){
+      if(it.head){
+        var hd=el("div","exhead"+(it.wp?" wp":""));
+        hd.innerHTML='<div class="exh-t">'+it.lbl+'</div><div class="exh-s">'+it.sub+'</div>';
+        host.appendChild(hd);return;
+      }
+      var row=el("div","set");
+      row.innerHTML='<span class="box">✓</span><span class="sl">'+it.lbl+'</span>'+(it.rest?'<span class="rest" data-r="'+it.rest+'">⏱ '+fmtSec(it.rest)+'</span>':'');
+      host.appendChild(row);
+    });
+  },
+  bilanCard(d){
+    var c=el("div","panel stampwrap");
+    c.id="bilan-card";
+    c.innerHTML='<h2>Bilan &amp; enregistrement</h2>'
+      +'<div class="fld"><label>Durée (min)</label><input id="bi-dur" inputmode="numeric" placeholder="ex : 50"></div>'
+      +'<div class="fld"><label>RPE séance (1-10)</label><input id="bi-rpe" inputmode="numeric" placeholder="ex : 8"></div>'
+      +(d.cat!=="force"?'<div class="fld"><label>Km</label><input id="bi-km" inputmode="decimal" placeholder="ex : 8,5"></div>':'')
+      +'<div class="fld"><label>'+(d.cat==="force"?"Charges réelles / ressenti":"Temps réels / sensations / VR")+'</label><input id="bi-note" placeholder="'+(d.cat==="force"?"ex : squat 87,5×5 RPE8 · Achille OK":"ex : 400 en 68-69 · VR 5,6 · Achille OK")+'"></div>'
+      +'<button class="btn btn-p" onclick="App.saveSession()">✔ Terminer &amp; enregistrer</button>'
+      +'<div class="statusline" id="bi-status"></div>';
+    return c;
+  },
+  saveSession(){
+    var d=this.cur; if(!d)return;
+    var dur=parseFloat(($("bi-dur")||{}).value)||0, rpe=parseFloat(($("bi-rpe")||{}).value)||0;
+    var km=($("bi-km")&&parseFloat(String($("bi-km").value).replace(",",".")))||0, note=($("bi-note")||{}).value||"";
+    var done=document.querySelectorAll(".set.done").length, tot=document.querySelectorAll(".set").length;
+    var entry={date:Date.now(),week:this.P.week,title:d.rtitle,cat:d.cat,dur:dur,rpe:rpe,km:km,load:Math.round(dur*rpe),done:done,tot:tot,note:note};
+    this.journal.unshift(entry);
+    this.persist();
+    var card=$("bilan-card");
+    if(card&&!card.querySelector(".stamp"))card.appendChild(el("div","stamp","Effectué"));
+    var st=$("bi-status"); if(st){st.className="statusline ok";st.textContent="✓ Séance consignée — "+ordNum(entry.date,d.letter)+" · charge "+entry.load+" UA";}
+    this.renderHome();
+    setTimeout(function(){App.show("journal");},900);
+  },
+
+  /* ---- achille ---- */
+  lastAch(){
+    if(!this.achilles.length)return null;
+    var a=this.achilles[0],d=new Date(a.date),t=new Date();
+    var when=d.toDateString()===t.toDateString()?"auj.":d.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"});
+    return{score:a.score,when:when};
+  },
+  logAch(v){
+    v=Math.max(0,Math.min(10,Math.round(v)));
+    var t=new Date();t.setHours(0,0,0,0);
+    if(this.achilles.length){var d0=new Date(this.achilles[0].date);d0.setHours(0,0,0,0);
+      if(d0.getTime()===t.getTime())this.achilles.shift();}
+    this.achilles.unshift({date:Date.now(),score:v});
+    if(this.achilles.length>90)this.achilles.length=90;
+    this.renderHome();
+    this.persist();
+  },
+  /* ---- recalibration ---- */
+  recalc(){
+    var d=parseFloat($("rc-dist").value),t=($("rc-time").value||"").trim();
+    var m=/^(\d+)[:'](\d{1,2})$/.exec(t);
+    if(!m){$("rc-out").innerHTML='<span style="color:var(--marking)">Format temps : mm:ss (ex 6:20)</span>';return;}
+    var sec=parseInt(m[1],10)*60+parseInt(m[2],10);
+    var sp=d/1000/(sec/3600);
+    var vma=d===2000?sp*1.02:sp/1.08;
+    vma=Math.round(vma*10)/10;
+    var cs=Math.round(vma*0.87*10)/10;
+    this._pend={vma:vma,cs:cs};
+    $("rc-out").innerHTML='Vitesse moy <b class="num">'+kg(sp)+' km/h</b> → VMA proposée <b class="num">'+kg(vma)+'</b> · CS ≈ <b class="num">'+kg(cs)+'</b>'
+      +'<button class="btn btn-g" style="margin-top:8px" onclick="App.applyVma()">Appliquer au profil</button>';
+  },
+  applyVma(){
+    if(!this._pend)return;
+    this.P.vma=this._pend.vma;this.P.cs=this._pend.cs;
+    this.persist();this.renderTools();this.renderHome();
+  },
+  /* ---- chart ---- */
+  drawChart(){
+    var c=$("loadChart");if(!c)return;
+    var W=c.width=(c.clientWidth||400)*2,H=c.height=240;
+    var ctx=c.getContext("2d");ctx.clearRect(0,0,W,H);
+    var days=[],now=new Date();now.setHours(0,0,0,0);
+    for(var i=13;i>=0;i--)days.push({t:now.getTime()-i*864e5,v:0});
+    this.journal.forEach(function(e){var dd=new Date(e.date);dd.setHours(0,0,0,0);
+      days.forEach(function(x){if(x.t===dd.getTime())x.v+=e.load||0;});});
+    var max=Math.max(100,Math.max.apply(null,days.map(function(x){return x.v;})));
+    /* lignes de niveau */
+    ctx.strokeStyle="rgba(74,82,64,.5)";ctx.lineWidth=1;
+    [0.25,0.5,0.75].forEach(function(f){
+      var y=H-28-f*(H-48);
+      ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+    });
+    var bw=W/14;
+    days.forEach(function(x,i){
+      var h=x.v/max*(H-48);
+      ctx.fillStyle=i===13?"#E8531F":(x.v?"#C8C2B0":"rgba(74,82,64,.55)");
+      ctx.fillRect(i*bw+bw*0.2,H-28-h,bw*0.6,Math.max(h,4));
+    });
+    ctx.fillStyle="#8A8676";ctx.font="700 18px "+'"JetBrains Mono","IBM Plex Mono",monospace';
+    ctx.textAlign="left";ctx.fillText("J−14",6,H-6);
+    ctx.textAlign="right";ctx.fillText("AUJ.",W-6,H-6);
+    ctx.fillText(String(max)+" UA",W-6,18);
+  },
+  copyBrief(){
+    var P=this.P,fw=this.fosterWeek(),ac=Coach.acwr(),m=Coach.metrics();
+    var L=[BRIEF,"=== ÉTAT ACTUEL (généré "+new Date().toLocaleDateString("fr-FR")+" "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})+") ===",
+      "Profil : VMA "+kg(P.vma)+" km/h · CS "+kg(P.cs)+" · FCmax "+P.fcmax+" · PDC "+P.bw+" kg · 1RM squat "+P.squat+" / SDT "+P.sdt+" / DC "+P.dc+" / tractions +"+P.pull+" / dips +"+P.dip+" kg",
+      "Objectif "+P.obj+" le "+P.race+" · Semaine "+P.week+"/12 ("+MESO(P.week)+")",
+      "Charge 7 j : "+fw.load+" UA · "+kg(fw.km)+" km · ACWR "+(ac==null?"n/a":kg(ac))+" · monotonie "+(Math.round(m.mono*10)/10)+" · strain "+m.strain,
+      "Achille (récent -> ancien) : "+(this.achilles.slice(0,10).map(function(a){return a.score;}).join(", ")||"non noté"),
+      "","JOURNAL ("+Math.min(this.journal.length,20)+" dernières séances) :"];
+    this.journal.slice(0,20).forEach(function(e){
+      L.push("- "+new Date(e.date).toLocaleDateString("fr-FR")+" S"+e.week+" · "+e.title+" · "+(e.dur||"?")+"' RPE "+(e.rpe||"?")+" · "+e.load+" UA"+(e.km?" · "+kg(e.km)+" km":"")+" · "+(e.done||0)+"/"+(e.tot||0)+" séries"+(e.note?" · "+e.note:""));
+    });
+    if(!this.journal.length)L.push("(vide)");
+    L.push("","=> Claude : reprends le suivi à partir de ce brief. Fichier app joint si modifications à faire.");
+    copyText(L.join("\n"),"cb-status","Brief complet copié ("+BRIEF_VERSION+") — colle-le dans une nouvelle conversation avec Claude.");
+  },
+  copyWeek(){
+    var fw=this.fosterWeek(),P=this.P,a=this.lastAch(),ac=Coach.acwr();
+    var lines=["BILAN 7 JOURS — S"+P.week+" · "+new Date().toLocaleDateString("fr-FR"),
+      "Charge "+fw.load+" UA · "+kg(fw.km)+" km · VMA "+kg(P.vma)+" · ACWR "+(ac==null?"—":kg(ac)),
+      a?("Achille : "+a.score+"/10 ("+a.when+")"):"Achille : non noté",""];
+    var now=Date.now();
+    this.journal.forEach(function(e){if(now-e.date<=7*864e5)lines.push("- "+new Date(e.date).toLocaleDateString("fr-FR")+" "+e.title+" · "+(e.dur||"?")+"' RPE "+(e.rpe||"?")+" · "+e.load+" UA"+(e.note?" · "+e.note:""));});
+    copyText(lines.join("\n"),"cw-status","Bilan 7 jours copié — colle-le à Claude dans le chat.");
+  },
+  fosterWeek(){
+    var now=Date.now(),wk=7*864e5,load=0,km=0;
+    this.journal.forEach(function(e){if(now-e.date<=wk){load+=e.load||0;km+=e.km||0;}});
+    return{load:load,km:km};
+  },
+
+  /* ---- TOOLS ---- */
+  renderTools(){
+    var P=this.P;
+    var h='<div class="panel"><h2>Allures — VMA <span class="num">'+kg(P.vma)+'</span> km/h</h2><div class="tscroll"><table class="t"><tr><th>% VMA</th><th>km/h</th><th>min/km</th><th>Zone</th></tr>';
+    var zones=[[60,"Récup"],[70,"Footing"],[75,"EF"],[85,"Tempo"],[87,"Sous-seuil ≈ CS"],[95,"VMA longue"],[100,"VMA"],[107,"Allure 1500"],[110,"Lactique"],[115,"Allure 800"]];
+    zones.forEach(function(z){var sp=P.vma*z[0]/100;var cls=z[0]===87?"hl":z[0]===107?"hl2":"";h+='<tr class="'+cls+'"><td>'+z[0]+'%</td><td>'+kg(sp)+'</td><td>'+paceKm(sp)+'</td><td class="l">'+z[1]+'</td></tr>';});
+    h+='</table></div><div class="mini">Sous-seuil (vert) = ton pivot. Allure 1500 (orange) = cible course.</div></div>';
+    h+='<div class="panel"><h2>Temps par distance</h2><div class="tscroll"><table class="t"><tr><th>Dist.</th><th>87%</th><th>95%</th><th>100%</th><th>107%</th></tr>';
+    [200,300,400,600,800,1000,1500].forEach(function(dm){h+='<tr><td>'+dm+' m</td>';[87,95,100,107].forEach(function(p){h+='<td>'+fmtSec(secDist(dm,P.vma*p/100))+'</td>';});h+='</tr>';});
+    h+='</table></div></div>';
+    h+='<div class="panel"><h2>Charges de travail</h2><div class="tscroll"><table class="t"><tr><th>Levée</th><th>1RM</th><th>70%</th><th>80%</th><th>85%</th><th>90%</th></tr>';
+    [["Squat",P.squat],["SDT",P.sdt],["Dév. couché",P.dc]].forEach(function(x){h+='<tr><td class="l">'+x[0]+'</td><td>'+x[1]+'</td>';[70,80,85,90].forEach(function(p){h+='<td>'+kg(r2(x[1]*p/100))+'</td>';});h+='</tr>';});
+    h+='</table></div><div class="mini">Lestés — lest à ajouter (PDC '+P.bw+' kg) :</div><div class="tscroll"><table class="t" style="margin-top:5px"><tr><th>Levée</th><th>1RM</th><th>75%</th><th>80%</th><th>85%</th><th>90%</th></tr>';
+    [["Tractions",P.pull],["Dips",P.dip]].forEach(function(x){h+='<tr><td class="l">'+x[0]+'</td><td>+'+x[1]+'</td>';[75,80,85,90].forEach(function(p){h+='<td>+'+kg(r125((P.bw+x[1])*p/100-P.bw))+'</td>';});h+='</tr>';});
+    h+='</table></div></div>';
+    h+='<div class="panel"><h2>Zones FC / lactate — FCmax <span class="num">'+P.fcmax+'</span></h2><div class="tscroll"><table class="t"><tr><th>Zone</th><th>Lactate</th><th>FC (bpm)</th></tr>'
+      +'<tr class="hl"><td class="l">Sous-seuil bas (LT1)</td><td>2-3 mmol</td><td>'+Math.round(P.fcmax*0.80)+'-'+Math.round(P.fcmax*0.85)+'</td></tr>'
+      +'<tr><td class="l">Sous-seuil haut</td><td>3-3,5 mmol</td><td>'+Math.round(P.fcmax*0.85)+'-'+Math.round(P.fcmax*0.88)+'</td></tr>'
+      +'<tr><td class="l">Seuil (LT2)</td><td>3,5-4,5</td><td>'+Math.round(P.fcmax*0.88)+'-'+Math.round(P.fcmax*0.92)+'</td></tr>'
+      +'<tr><td class="l">VO2max / spécifique</td><td>&gt; 6 mmol</td><td>'+Math.round(P.fcmax*0.94)+'+</td></tr></table></div>'
+      +'<div class="mini">Sans lactatemètre, pilote à la FC. Erreur n°1 : courir le sous-seuil trop vite.</div></div>';
+    /* splits course */
+    h+='<div class="panel"><h2>Splits 1500 m</h2>'
+      +'<div class="fld"><label>Temps cible (mm:ss)</label><input id="sp-time" placeholder="'+esc(P.obj).replace("'",":")+'" value="'+esc(P.obj).replace("'",":")+'"></div>'
+      +'<button class="btn btn-p" onclick="App.splits()">Calculer les passages</button>'
+      +'<div id="sp-out" style="margin-top:8px"></div></div>';
+    h+='<div class="panel"><h2>Recalibrer après un test</h2>'
+      +'<div class="grid2" style="margin-bottom:0"><div class="fld"><label>Distance</label><select id="rc-dist"><option value="2000">2000 m</option><option value="1500">1500 m</option></select></div>'
+      +'<div class="fld"><label>Temps (mm:ss)</label><input id="rc-time" placeholder="6:20"></div></div>'
+      +'<button class="btn btn-p" onclick="App.recalc()">Calculer ma VMA</button>'
+      +'<div class="mini" id="rc-out" style="margin-top:8px"></div>'
+      +'<div class="mini">2000 m : VMA = vitesse × 1,02 · 1500 m : VMA = vitesse ÷ 1,08.</div></div>';
+    $("v-tools").innerHTML=h;
+  },
+  splits(){
+    var t=($("sp-time").value||"").trim(),m=/^(\d+)[:'](\d{1,2})$/.exec(t);
+    if(!m){$("sp-out").innerHTML='<span style="color:var(--marking)">Format mm:ss (ex 4:10)</span>';return;}
+    var tot=parseInt(m[1],10)*60+parseInt(m[2],10),p100=tot/15;
+    var h='<div class="tscroll"><table class="t"><tr><th>Passage</th><th>Cumulé</th><th>Tour (400 m)</th></tr>';
+    [[300,"300 m"],[700,"700 m"],[1100,"1100 m"],[1500,"Arrivée"]].forEach(function(x,i){
+      var cum=p100*x[0]/100, lap=i===0?p100*3:p100*4;
+      h+='<tr'+(i===3?' class="hl2"':'')+'><td class="l">'+x[1]+'</td><td>'+fmtT(cum)+'</td><td>'+fmtSec(lap)+'</td></tr>';
+    });
+    h+='</table></div><div class="mini">Stratégie : 1ᵉʳ 300 à +1″ (ne pas se griller), tours réguliers, dernier 400 en négatif si les jambes répondent. 100 m = '+fmtSec(p100)+'.</div>';
+    $("sp-out").innerHTML=h;
+  },
+
+  /* ---- JOURNAL (données + historique) ---- */
+  fileCardHTML(){
+    var s=FileLink.state();
+    var h='<h2>Fichier de données — couche disque</h2>';
+    if(!FileLink.supported){
+      h+='<div class="filestate"><span class="dot"></span>API FICHIER NON DISPONIBLE SUR CE NAVIGATEUR</div>'
+        +'<div class="mini">Firefox, Safari et la plupart des navigateurs mobiles ne supportent pas la liaison de fichier. La sauvegarde auto continue en localStorage — utilise <b>Exporter / Importer</b> ci-dessous pour le fichier.</div>';
+      return h;
+    }
+    var cls=s==="synced"?"ok":s==="unlinked"?"":"warn";
+    h+='<div class="filestate '+cls+'"><span class="dot"></span>'+FileLink.label()+'</div>';
+    if(s==="unlinked"){
+      h+='<div class="mini">Choisis une fois un fichier <b>blackline-data.json</b> sur ton disque : ensuite chaque saisie y est réécrite automatiquement (2 s après la modification). Le lien survit à la fermeture du navigateur.</div>'
+        +'<div class="btnrow" style="margin-top:10px"><button class="btn btn-p" onclick="FileLink.link()">Lier fichier</button></div>';
+    } else if(s==="locked"){
+      h+='<div class="mini">Le fichier est lié mais le navigateur redemande l\'autorisation d\'écriture après redémarrage — un tap suffit.</div>'
+        +'<div class="btnrow" style="margin-top:10px"><button class="btn btn-p" onclick="FileLink.grant()">Autoriser l\'écriture</button>'
+        +'<button class="btn btn-o" onclick="FileLink.unlink()">Délier</button></div>';
+    } else {
+      h+='<div class="mini">Sauvegarde automatique active'+(FileLink.handle&&FileLink.handle.name?' → <b>'+esc(FileLink.handle.name)+'</b>':'')+'. Dernière écriture : '+(FileLink.lastSync?fmtMil(FileLink.lastSync):"—")+'.</div>'
+        +'<div class="btnrow" style="margin-top:10px"><button class="btn btn-p" onclick="FileLink.write()">Sauvegarder maintenant</button>'
+        +'<button class="btn btn-o" onclick="FileLink.unlink()">Délier</button></div>';
+    }
+    return h;
+  },
+  renderJournal(){
+    var fw=this.fosterWeek(),ac=Coach.acwr();
+    var h='<div class="grid2">'
+      +'<div class="stat"><div class="lbl">CHG — 7 j</div><div class="v">'+fw.load+' <small>UA</small></div></div>'
+      +'<div class="stat"><div class="lbl">ACWR</div><div class="v">'+(ac==null?"—":kg(ac))+'</div></div></div>';
+    h+='<div class="ledger"><span class="tag">Données — sauvegarde &amp; transfert</span><span class="rule"></span><span class="tick"></span></div>';
+    h+='<div class="panel" id="data-file-card">'+this.fileCardHTML()+'</div>';
+    h+='<div class="panel"><h2>Backup manuel</h2>'
+      +'<div class="mini" style="margin-top:0">Le backup contient tout : profil, journal complet, historique Achille, version de schéma. L\'import montre un résumé et demande confirmation avant d\'écraser quoi que ce soit.</div>'
+      +'<div class="btnrow" style="margin-top:10px">'
+      +'<button class="btn btn-p" onclick="App.exportData()">Exporter (.json)</button>'
+      +'<button class="btn btn-o" onclick="App.importPick()">Importer</button></div>'
+      +'<input type="file" id="bk-file" accept=".json,application/json" style="display:none" onchange="App.importData(event)">'
+      +'<div class="statusline" id="bk-status"></div></div>';
+    /* snapshots */
+    var snaps=Store.snapshots();
+    h+='<div class="panel"><h2>Restauration — snapshots automatiques</h2>'
+      +'<div class="mini" style="margin-top:0">À chaque ouverture de l\'app, un instantané des données est conservé (5 derniers, rotation auto).</div>';
+    if(!snaps.length)h+='<div class="empty" style="margin:10px 0 0">AUCUN SNAPSHOT DISPONIBLE</div>';
+    else{
+      snaps.forEach(function(s,i){
+        h+='<div class="snap"><span>'+fmtMil(s.ts)+' · '+s.n+' séances · '+(Math.round(s.size/102.4)/10)+' Ko</span>'
+          +'<button class="snapbtn" onclick="App.askRestore('+i+')">Restaurer</button></div>';
+      });
+    }
+    h+='</div>';
+    h+='<div class="ledger"><span class="tag">Liaison Claude</span><span class="rule"></span><span class="tick"></span></div>';
+    h+='<div class="panel" style="border-left:3px solid var(--marking)"><h2>Reprendre avec Claude</h2>'
+      +'<div style="font-size:12.5px;color:var(--treillis)">Nouvelle conversation ? Copie le <b style="color:var(--sand)">brief complet</b> (projet, règles, décisions, profil, journal, Achille) et colle-le à Claude avec le fichier de l\'app : rien ne se perd, on ne refait rien.</div>'
+      +'<button class="btn btn-p" style="margin-top:9px" onclick="App.copyBrief()">Copier le brief complet</button>'
+      +'<div class="statusline" id="cb-status"></div>'
+      +'<div class="mini">Version du brief : '+BRIEF_VERSION+' — mise à jour par Claude à chaque évolution du fichier.</div></div>';
+    h+='<div class="panel"><h2>Bilan 7 jours</h2><button class="btn btn-o" onclick="App.copyWeek()">Copier mon bilan 7 jours</button><div class="statusline" id="cw-status"></div></div>';
+    h+='<div class="ledger"><span class="tag">Historique — charge 14 j</span><span class="rule"></span><span class="tick"></span></div>';
+    h+='<div class="panel"><canvas id="loadChart"></canvas><div class="mini">UA par jour (durée × RPE) — barre orange = aujourd\'hui</div></div>';
+    if(!this.journal.length){h+='<div class="empty">AUCUNE SÉANCE CONSIGNÉE<br>SEMAINE EN ATTENTE D\'ORDRES</div>';}
+    else{
+      h+='<div class="lbl" style="margin:4px 2px 8px">'+this.journal.length+' séances consignées</div>';
+      this.journal.forEach(function(e,i){
+        h+='<div class="jitem"><div class="jh"><span class="jt'+(e.cat==="force"?" o":"")+'">'+esc(e.title)+'</span>'
+          +'<span class="ministamp">Effectué</span></div>'
+          +'<div class="jd">'+fmtMil(e.date)+' · S'+e.week+' · '+(e.dur||"?")+"′ · RPE "+(e.rpe||"?")+' · '+e.load+' UA'+(e.km?" · "+kg(e.km)+" km":"")+' · '+(e.done||0)+'/'+(e.tot||0)+' séries</div>'
+          +(e.note?'<div class="jn">'+esc(e.note)+'</div>':'')
+          +'<div style="text-align:right;margin-top:3px"><span class="jdel" onclick="App.delJ('+i+')">supprimer</span></div></div>';
+      });
+    }
+    $("v-journal").innerHTML=h;
+    this.drawChart();
+  },
+  delJ(i){this.journal.splice(i,1);this.persist();this.renderJournal();this.renderHome();},
+
+  /* ---- export / import / restauration ---- */
+  exportData(){
+    var data=this.data();data.exported=new Date().toISOString();
+    var blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="blackline-backup-"+new Date().toISOString().slice(0,10)+".json";
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},300);
+    var st=$("bk-status");if(st){st.className="statusline ok";st.textContent="✓ Backup exporté — garde-le dans tes Fichiers.";setTimeout(function(){st.textContent="";},3500);}
+  },
+  importPick(){var f=$("bk-file");if(f)f.click();},
+  async importData(ev){
+    var f=ev.target.files&&ev.target.files[0];if(!f)return;
+    var st=$("bk-status");
+    try{
+      var txt=await f.text();
+      var d=migrate(JSON.parse(txt));
+      if(!d||!d.profile)throw new Error("format");
+      this._staged=d;
+      /* écran de confirmation : résumé importé vs existant */
+      var range="—";
+      if(d.journal.length){
+        var ds=d.journal.map(function(e){return e.date;});
+        range=fmtMilD(Math.min.apply(null,ds))+" → "+fmtMilD(Math.max.apply(null,ds));
+      }
+      var body='<div class="filestate warn" style="margin-bottom:10px"><span class="dot"></span>CONFIRMATION AVANT ÉCRASEMENT</div>'
+        +'<table class="t"><tr><th></th><th>Fichier importé</th><th>Données actuelles</th></tr>'
+        +'<tr><td class="l">Séances</td><td>'+d.journal.length+'</td><td>'+this.journal.length+'</td></tr>'
+        +'<tr><td class="l">Plage</td><td>'+range+'</td><td>'+(this.journal.length?fmtMilD(Math.min.apply(null,this.journal.map(function(e){return e.date;})))+" → "+fmtMilD(Math.max.apply(null,this.journal.map(function(e){return e.date;}))):"—")+'</td></tr>'
+        +'<tr><td class="l">Achille</td><td>'+d.achilles.length+' notes</td><td>'+this.achilles.length+' notes</td></tr>'
+        +'<tr><td class="l">Objectif</td><td>'+esc((d.profile&&d.profile.obj)||"—")+'</td><td>'+esc(this.P.obj)+'</td></tr></table>'
+        +'<div class="mini"><b>Remplacer</b> : tout est écrasé par le fichier. <b>Fusionner</b> : les séances et notes Achille des deux côtés sont réunies (doublons ignorés), le profil actuel est conservé.</div>';
+      Confirm.open("Importer un backup",body,[
+        {label:"Remplacer tout",cls:"btn-p",fn:function(){App.applyImport("replace");}},
+        {label:"Fusionner",cls:"btn-g",fn:function(){App.applyImport("merge");}},
+        {label:"Annuler",cls:"btn-o",fn:function(){App._staged=null;Confirm.close();}}
+      ]);
+    }catch(e){if(st){st.className="statusline err";st.textContent="✗ Fichier invalide — utilise un backup exporté par l'app.";setTimeout(function(){st.textContent="";},4000);}}
+    ev.target.value="";
+  },
+  applyImport(mode){
+    var d=this._staged;if(!d)return;
+    if(mode==="replace"){
+      this.P=Object.assign({},DEF,d.profile);
+      this.journal=d.journal;
+      this.achilles=d.achilles;
+    }else{
+      /* fusion : union des séances (clé date+titre) et des notes Achille (clé jour) */
+      var seen={};
+      this.journal.forEach(function(e){seen[e.date+"|"+e.title]=1;});
+      var self=this;
+      d.journal.forEach(function(e){if(!seen[e.date+"|"+e.title])self.journal.push(e);});
+      this.journal.sort(function(a,b){return b.date-a.date;});
+      var days={};
+      this.achilles.forEach(function(a){var t=new Date(a.date);t.setHours(0,0,0,0);days[t.getTime()]=1;});
+      d.achilles.forEach(function(a){var t=new Date(a.date);t.setHours(0,0,0,0);if(!days[t.getTime()])self.achilles.push(a);});
+      this.achilles.sort(function(a,b){return b.date-a.date;});
+    }
+    this._staged=null;
+    this.persist();
+    Confirm.close();
+    this.renderJournal();this.renderHome();
+    var st=$("bk-status");if(st){st.className="statusline ok";st.textContent="✓ "+(mode==="replace"?"Backup restauré":"Backup fusionné")+" ("+this.journal.length+" séances au total).";setTimeout(function(){st.textContent="";},4000);}
+  },
+  askRestore(i){
+    var snaps=Store.snapshots(),s=snaps[i];if(!s)return;
+    var body='<div class="filestate warn" style="margin-bottom:10px"><span class="dot"></span>RESTAURATION D\'UN ÉTAT ANTÉRIEUR</div>'
+      +'<div style="font-size:13px">Snapshot du <b class="num">'+fmtMil(s.ts)+'</b> — '+s.n+' séances, '+(Math.round(s.size/102.4)/10)+' Ko.<br>'
+      +'Les données actuelles ('+this.journal.length+' séances) seront remplacées par cet état.</div>';
+    Confirm.open("Restaurer un snapshot",body,[
+      {label:"Restaurer cet état",cls:"btn-p",fn:function(){App.doRestore(i);}},
+      {label:"Annuler",cls:"btn-o",fn:function(){Confirm.close();}}
+    ]);
+  },
+  doRestore(i){
+    var snaps=Store.snapshots(),s=snaps[i];if(!s)return;
+    try{
+      var d=migrate(JSON.parse(s.data));
+      this.P=Object.assign({},DEF,d.profile);
+      this.journal=d.journal;
+      this.achilles=d.achilles;
+      this.persist();
+    }catch(e){}
+    Confirm.close();
+    this.renderJournal();this.renderHome();
+  },
+
+  /* ---- PROFILE ---- */
+  openProfile(){
+    var P=this.P;
+    var fields=[["obj","Objectif 1500 m","text"],["race","Date de course","date"],["vma","VMA (km/h)","number"],["cs","Vitesse critique (km/h)","number"],["fcmax","FC max (bpm)","number"],["bw","Poids de corps (kg)","number"],["squat","Squat 1RM (kg)","number"],["sdt","Soulevé 1RM (kg)","number"],["dc","Développé 1RM (kg)","number"],["pull","Tractions +1RM (kg)","number"],["dip","Dips +1RM (kg)","number"],["week","Semaine actuelle (1-12)","number"]];
+    var h="";fields.forEach(function(f){h+='<div class="fld"><label>'+f[1]+'</label><input id="pf-'+f[0]+'" type="'+f[2]+'" step="0.1" value="'+esc(P[f[0]])+'"></div>';});
+    $("profile-form").innerHTML=h;
+    $("store-note").textContent=(Store.ok?"Sauvegarde auto : localStorage":"⚠ localStorage indisponible")+(FileLink.handle?" + fichier lié":"");
+    $("modal").classList.add("show");
+  },
+  closeProfile(){$("modal").classList.remove("show");},
+  saveProfile(){
+    var self=this;["obj","race","vma","cs","fcmax","bw","squat","sdt","dc","pull","dip","week"].forEach(function(k){
+      var v=$("pf-"+k).value; self.P[k]=(k==="obj"||k==="race")?v:parseFloat(v)||self.P[k];
+    });
+    if(this.P.week<1)this.P.week=1; if(this.P.week>12)this.P.week=12;
+    this.persist();this.closeProfile();this.renderHome();
+  },
+
+  /* ---- PLAN (projet global) ---- */
+  openPlan(){
+    var h='';
+    h+='<p><b>Vision :</b> un seul système, trois horizons — <span class="pill o">P1 · 1500 m '+esc(this.P.obj)+' + force max</span> <span class="pill">Hypertrophie points faibles en continu</span> <span class="pill g">P2 · Hyrox &lt; 1 h</span></p>';
+    h+='<h3>1 · Architecture hebdo — 6 jours + 1 repos, 1 doublé</h3>'
+      +'<ul><li><b>Lun</b> matin VMA · soir Force A bas du corps (≥ 6 h d\'écart)</li>'
+      +'<li><b>Mar</b> sous-seuil · <b>Mer</b> Force B poussée · <b>Jeu</b> spécifique 1500 · <b>Ven</b> Force C tirage · <b>Sam</b> sortie longue · <b>Dim</b> repos complet</li></ul>'
+      +'<p>Le doublé est concentré sur le lundi : la fatigue s\'empile sur un seul jour dur, ce qui libère <b>72 h de fraîcheur bas du corps</b> avant le spécifique du jeudi et garde la monotonie de Foster basse (dur/modéré/facile alternés).</p>'
+      +'<p class="ref">Foster 1998 (monotonie &amp; strain) · Gabbett 2016 (ACWR 0,8-1,3) · Rønnestad &amp; Mujika 2014.</p>';
+    h+='<h3>2 · Force : 3 séances spécialisées, 1-2 levées principales max</h3>'
+      +'<ul><li><b>A — Bas du corps :</b> squat ⇄ SDT en étoile (top set + back-offs), pas les deux la même semaine → on envoie fort sur une seule barre.</li>'
+      +'<li><b>B — Poussée :</b> DC principal + dips lestés secondaires.</li>'
+      +'<li><b>C — Tirage :</b> tractions lestées principales + corde sans élan (prépare aussi le bloc corde/one-arm).</li></ul>'
+      +'<p>Intensité haute (80→92 %), volume de barres faible, arrêt à ~20 % de perte de vitesse : le stimulus force/économie de course est maximal, la fatigue résiduelle minimale — exactement ce que montre la littérature du coureur de demi-fond fort.</p>'
+      +'<p class="ref">Blagrove 2018 (force → économie de course) · Beattie 2014 · Pareja-Blanco 2017 (velocity loss 20 %).</p>';
+    h+='<h3>3 · Hypertrophie points faibles — en accessoire, chaque séance</h3>'
+      +'<ul><li><b>Ischios :</b> lundi (SDT roumain / Nordic + leg curl) — 5-6 séries dures/sem, double rôle : muscle + prévention claquage.</li>'
+      +'<li><b>Pectoraux :</b> mercredi (incliné haltères + écartés) — 5-6 séries.</li>'
+      +'<li><b>Arrière d\'épaule :</b> réparti mer + ven (face pull + oiseau) — 5-6 séries.</li>'
+      +'<li><b>Trapèzes :</b> vendredi (shrugs lourds pause en haut) — 3-4 séries.</li></ul>'
+      +'<p>Dose : 8-15 reps, <b>RPE 8-9</b> (0-2 reps de la faillite), repos 60-90″. En concurrent, 5-10 séries dures/muscle/semaine près de l\'échec suffisent à faire pousser un point faible. Décharges : volume ÷ 2. M3 (S9-12) : volume réduit d\'un cran — le muscle se maintient avec 1/3 du volume, la fraîcheur part sur la piste.</p>'
+      +'<p class="ref">Schoenfeld 2017 (dose-réponse volume) · Lasevicius 2019 (proximité de l\'échec) · Bickel 2011 (maintenance).</p>';
+    h+='<h3>4 · Anti-surentraînement — les 4 garde-fous</h3>'
+      +'<ul><li><b>Monotonie Foster &lt; 2</b> (calculée en direct dans Analyse)</li>'
+      +'<li><b>ACWR 0,8-1,3</b> — jamais +35 % de charge d\'une semaine à l\'autre</li>'
+      +'<li><b>Achille ≤ 3/10</b> — sinon bascule auto : rapide → sous-seuil/vélo Z1, squat → tempo léger</li>'
+      +'<li><b>VR à allure égale</b> — une dérive du ratio vertical à la même allure = fatigue neuromusculaire, pas une dérive à allure lente</li></ul>';
+    h+='<h3>5 · P2 — Hyrox sous l\'heure (post-Nyons)</h3>'
+      +'<p>Bloc 10-12 sem : le sous-seuil devient le cœur (8×1 km compromised running post-station), la force max de P1 se convertit en force-endurance (sled push/pull lourds, farmer, wall balls EMOM, burpee broad jumps). Les tractions/dips/corde de P1 = base directe pour les stations tirage. PB 1h10 → sub-1h passe par ~4\'15/km moyen entre stations + zéro rupture sur sled : la force construite maintenant est le prérequis n°1.</p>'
+      +'<p class="ref">Analyse des splits Hyrox élite : la course représente ~55 % du temps, le sled ~15 % — les deux se gagnent en P1.</p>';
+    h+='<h3>6 · Mises à jour science (2024-2026)</h3>'
+      +'<p><b>Achille — protocole HSR.</b> Le guide clinique JOSPT/AOPT 2024 et l\'essai de Beyer montrent que le renforcement lourd-lent (heavy slow resistance) égale l\'Alfredson avec une meilleure tolérance, et que 3×/semaine suffit (la fréquence quotidienne n\'apporte rien de plus). Protocole : montées de mollet lestées, 3×15, tempo 3 s montée / 3 s descente, genou tendu puis fléchi, les jours de muscu. Antalgique aigu : isométries 4×45 s en position haute. Pliométrie réintroduite progressivement une fois Achille ≤ 2/10 stable — validée par le continuum de charge du guide 2024.</p>'
+      +'<p class="ref">JOSPT 2024 CPG midportion Achilles (10.2519/jospt.2024.0302) · Beyer 2015 HSR vs Alfredson.</p>'
+      +'<p><b>Distribution d\'intensité — base aérobie = priorité.</b> La revue de Casado sur le 1500 m élite : distribution pyramidale (volume décroissant Z1→Z2→Z3), 90 % du travail sous le seuil, et c\'est le volume aérobie (Z1) qui distingue les spécialistes du 1500. Conséquence : ta plus grosse marge n\'est pas l\'intensité (déjà couverte) mais le volume facile. Vélo Z1 2×/sem = volume aérobie à coût tendineux nul.</p>'
+      +'<p class="ref">Casado et al. — 800/1500 m élite · Casado et al. 2022 — TID pyramidale élite.</p>'
+      +'<p><b>Séquence force→course validée.</b> Revue parapluie 2025 (17 méta-analyses, 144 études) + revue de séquence 2025 : l\'ordre force-puis-endurance favorise la force dynamique du bas du corps sur les blocs ≥ 5 sem. Ton doublé muscu 5 h → course l\'après-midi est donc optimal, pas un compromis logistique.</p>'
+      +'<p class="ref">Umbrella review CT 2025 · Eddens/Schumann sequence reviews.</p>';
+    h+='<button class="btn btn-p" style="margin-top:12px" onclick="App.closePlan()">C\'est parti</button>';
+    $("plan-body").innerHTML=h;
+    $("modal-plan").classList.add("show");
+  },
+  closePlan(){$("modal-plan").classList.remove("show");}
+};
+
+/* ---------- copie presse-papier ---------- */
+function copyText(t,statusId,msg){
+  function fb(x){var ta=document.createElement("textarea");ta.value=x;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(e){}setTimeout(function(){ta.remove();},80);}
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).catch(function(){fb(t);});else fb(t);
+  var st=$(statusId);if(st){st.className="statusline ok";st.textContent="✓ "+msg;setTimeout(function(){st.textContent="";},4000);}
+}
+
+/* ---------- modal de confirmation générique ---------- */
+var Confirm={
+  open(title,bodyHTML,btns){
+    $("cf-title").textContent=title;
+    $("cf-body").innerHTML=bodyHTML;
+    var host=$("cf-btns");host.innerHTML="";
+    btns.forEach(function(b){
+      var btn=el("button","btn "+b.cls,b.label);
+      btn.style.marginTop="8px";
+      btn.onclick=b.fn;
+      host.appendChild(btn);
+    });
+    $("modal-confirm").classList.add("show");
+  },
+  close(){$("modal-confirm").classList.remove("show");}
+};
+
+/* ---------- sets ---------- */
+var Sets={
+  wire(){
+    /* scope à la vue séance : évite d'accrocher la carte "Repos" de l'accueil (.daycard.rest) */
+    document.querySelectorAll("#v-week .set").forEach(function(s){
+      s.addEventListener("click",function(e){ if(e.target.closest(".rest"))return; s.classList.toggle("done"); });
+    });
+    document.querySelectorAll("#v-week .rest").forEach(function(r){
+      r.addEventListener("click",function(){ Tmr.open(parseInt(r.getAttribute("data-r"),10),"Repos"); });
+    });
+  }
+};
+
+/* ---------- timer ---------- */
+var Tmr={t:0,total:0,iv:null,paused:false,wl:null,
+  beep(){try{var c=new(window.AudioContext||window.webkitAudioContext)();[0,150,300].forEach(function(o){var os=c.createOscillator(),g=c.createGain();os.connect(g);g.connect(c.destination);os.frequency.value=880;g.gain.value=.16;os.start(c.currentTime+o/1000);os.stop(c.currentTime+o/1000+.12);});}catch(e){}},
+  async lock(){try{if(navigator.wakeLock&&!this.wl)this.wl=await navigator.wakeLock.request("screen");}catch(e){}},
+  unlock(){try{if(this.wl){this.wl.release();this.wl=null;}}catch(e){}},
+  render(){
+    $("t-num").textContent=fmtT(this.t);
+    $("t-num").classList.toggle("w",this.t<=5);
+    var host=$("t-gauge"),n=20,k=this.total?Math.ceil(this.t/this.total*n):0,h="";
+    for(var i=0;i<n;i++)h+='<i class="'+(i<k?"on ok":"")+'"></i>';
+    host.innerHTML=h;
+  },
+  open(sec,name){this.t=sec;this.total=sec;this.paused=false;$("t-name").textContent=name;$("t-pause").textContent="Pause";this.render();clearInterval(this.iv);var self=this;this.iv=setInterval(function(){self.tick();},1000);$("timer").classList.add("show");this.lock();},
+  tick(){if(this.paused)return;this.t--;this.render();if(this.t<=0){clearInterval(this.iv);this.beep();$("t-num").textContent="GO";var self=this;setTimeout(function(){self.close();},1200);}},
+  toggle(){this.paused=!this.paused;$("t-pause").textContent=this.paused?"Reprendre":"Pause";},
+  add(s){this.t+=s;this.total+=s;this.render();},
+  close(){clearInterval(this.iv);$("timer").classList.remove("show");this.unlock();}
+};
+
+/* ---------- Coach : analyses locales déterministes ---------- */
+var Coach={
+  dailyLoads(n){
+    var now=new Date();now.setHours(0,0,0,0);
+    var arr=[];for(var i=n-1;i>=0;i--)arr.push({t:now.getTime()-i*864e5,v:0});
+    App.journal.forEach(function(e){var d=new Date(e.date);d.setHours(0,0,0,0);
+      for(var k=0;k<arr.length;k++)if(arr[k].t===d.getTime()){arr[k].v+=e.load||0;break;}});
+    return arr;
+  },
+  acwr(){
+    var d=this.dailyLoads(28),sum28=0,acute=0;
+    d.forEach(function(x,i){sum28+=x.v;if(i>=21)acute+=x.v;});
+    var chronic=sum28/4;
+    if(chronic<30)return null;
+    return Math.round(acute/chronic*100)/100;
+  },
+  metrics(){
+    var now=Date.now(),d7=7*864e5;
+    var cur=App.journal.filter(function(e){return now-e.date<=d7;});
+    var prev=App.journal.filter(function(e){return now-e.date>d7&&now-e.date<=2*d7;});
+    var sum=function(a){return a.reduce(function(x,e){return x+(e.load||0);},0);};
+    var curL=sum(cur),prevL=sum(prev);
+    var daily=[0,0,0,0,0,0,0];
+    cur.forEach(function(e){var d=Math.floor((now-e.date)/864e5);if(d>=0&&d<7)daily[d]+=e.load||0;});
+    var mean=daily.reduce(function(a,b){return a+b;},0)/7;
+    var sd=Math.sqrt(daily.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/7);
+    var mono=sd>0?mean/sd:0;
+    return{cur:cur,curL:curL,prevL:prevL,ratio:prevL>0?curL/prevL:null,mono:mono,strain:Math.round(curL*mono),km:cur.reduce(function(x,e){return x+(e.km||0);},0)};
+  },
+  card(t,b,color){return '<div class="panel"><h2'+(color?' style="color:'+color+'"':'')+'>'+t+'</h2><div style="font-size:12.5px;line-height:1.5">'+b+'</div></div>';},
+  analyseHTML(){
+    var m=this.metrics(),ac=this.acwr(),out="";
+    var rtxt=m.ratio==null?"Pas encore d'historique comparatif — continue d'enregistrer, l'analyse s'affine seule."
+      :m.ratio>1.35?"⚠ <b>+"+Math.round((m.ratio-1)*100)+" %</b> vs semaine précédente — pic de charge. N'ajoute rien, sécurise sommeil et Achille."
+      :m.ratio<0.7?"<b>"+Math.round((m.ratio-1)*100)+" %</b> vs semaine précédente — sous-charge (récup volontaire ou décharge ?)."
+      :"<b>"+(m.ratio>=1?"+":"")+Math.round((m.ratio-1)*100)+" %</b> vs semaine précédente — dans le couloir sain (±30 %).";
+    out+=this.card("CHG — Charge 7 j · "+m.curL+" UA · "+kg(m.km)+" km",rtxt);
+    if(ac!=null){
+      var at=ac>1.5?"⚠ <b>"+kg(ac)+"</b> — zone rouge (&gt;1,5) : risque de blessure élevé, coupe 20-30 % cette semaine."
+        :ac>1.3?"<b>"+kg(ac)+"</b> — au-dessus du couloir (0,8-1,3) : stabilise, n'ajoute rien."
+        :ac<0.8?"<b>"+kg(ac)+"</b> — sous le couloir : tu peux recharger progressivement (+10 %/sem max)."
+        :"<b>"+kg(ac)+"</b> — dans le couloir optimal 0,8-1,3 ✔ (Gabbett).";
+      at+=gauge(ac/2,ac>=0.8&&ac<=1.3);
+      out+=this.card("ACWR — aigu 7 j / chronique 28 j",at);
+    }
+    if(m.cur.length>=3){
+      var mOK=m.mono<=2;
+      var mt=(mOK?"Monotonie <b>"+(Math.round(m.mono*10)/10)+"</b> · strain "+m.strain+" — bonne alternance dur/facile ✔"
+        :"⚠ Monotonie <b>"+(Math.round(m.mono*10)/10)+"</b> (&gt;2) — alterne plus franchement jours durs/faciles. Strain "+m.strain+".")
+        +gauge(m.mono/3,mOK);
+      out+=this.card("Monotonie &amp; strain (Foster)",mt);
+    }
+    out+=this.achCard();
+    var ss=m.cur.filter(function(e){return /Sous-seuil/i.test(e.title)&&e.rpe;});
+    if(ss.length){var ar=ss.reduce(function(x,e){return x+e.rpe;},0)/ss.length;
+      out+=this.card("Sous-seuil","RPE moyen <b>"+(Math.round(ar*10)/10)+"</b> — "+(ar>7?"⚠ trop vite ! Cale 150-160 bpm (2-3 mmol) : c'est le volume qui monte ta CS, pas l'intensité.":"contrôlé ✔ exactement la zone qui monte ta CS."));}
+    var cc=this.chargeHTML(); if(cc)out+=cc;
+    if(!App.journal.length)out=this.card("Journal vide","AUCUNE SÉANCE CONSIGNÉE — termine une séance (bouton ✔) et note ton Achille sur l'Accueil : tout ici se calcule automatiquement.")+out;
+    return out;
+  },
+  achCard(){
+    var a=App.achilles;
+    if(!a.length)return this.card("Achille","Pas encore noté — note ta douleur (0-10) chaque jour sur l'Accueil.");
+    var last=a[0].score;
+    var r3=a.slice(0,3).reduce(function(x,y){return x+y.score;},0)/Math.min(3,a.length);
+    var p3=a.slice(3,6);
+    var trend=p3.length?r3-(p3.reduce(function(x,y){return x+y.score;},0)/p3.length):0;
+    var warn=last>3||trend>0.7;
+    var t=warn?"⚠ <b>"+last+"/10</b>"+(trend>0.7?" et en hausse":"")+" → cette semaine : VMA/spécifique remplacés par sous-seuil ou vélo, squat en tempo léger (−20 %), HSR maintenu. Reprise du rapide quand ≤ 3/10."
+      :"<b>"+last+"/10</b>"+(trend<-0.5?" et en baisse ✔":"")+" — feu vert, programme normal. HSR 3×/sem, toujours.";
+    return this.card("Achille",t,warn?"var(--marking)":undefined);
+  },
+  chargeHTML(){
+    var f=App.journal.filter(function(e){return e.cat==="force"&&e.rpe;}).slice(0,3);
+    if(!f.length)return "";
+    var t="";
+    f.forEach(function(e){
+      var s=e.rpe<=7?"→ monte le top set de <b>+2,5 kg</b> (RPE "+e.rpe+" = marge dispo)."
+        :e.rpe>=9?"→ garde ou baisse de <b>2,5-5 kg</b> (RPE "+e.rpe+" = trop coûteux en concurrent)."
+        :"→ même charge, la double progression fera le reste (RPE "+e.rpe+" ✔).";
+      t+="<b>"+esc(e.title)+"</b><br>"+s+"<br><br>";
+    });
+    return this.card("Prochains top sets",t);
+  },
+  nextHTML(){
+    var days=App.week(App.P.week),now=Date.now(),d7=7*864e5;
+    var doneT=App.journal.filter(function(e){return now-e.date<=d7;}).map(function(e){return e.title;});
+    var nx=null;
+    for(var i=0;i<days.length;i++){var d=days[i];if(d.kind!=="rest"&&doneT.indexOf(d.rtitle)===-1){nx=d;break;}}
+    if(!nx)nx=days[0];
+    return this.card("Prochaine séance — "+nx.day,"<b>"+nx.rtitle+"</b><br>"+nx.sum
+      +'<br><br><button class="btn btn-p" onclick="App.openSession(\''+nx.id+'\')">Ouvrir la séance complète</button>');
+  },
+  /* ---- rendu vue analyse (100 % local) ---- */
+  render(){
+    var v=$("v-coach");
+    v.innerHTML='<div class="chips">'
+      +'<span class="pill" role="button" tabindex="0" onclick="Coach.showA()">Analyse complète</span>'
+      +'<span class="pill o" role="button" tabindex="0" onclick="Coach.showN()">Prochaine séance</span>'
+      +'<span class="pill g" role="button" tabindex="0" onclick="Coach.showAch()">Achille</span>'
+      +'<span class="pill" role="button" tabindex="0" onclick="Coach.showC()">Charges</span></div>'
+      +'<div id="an-out"></div>'
+      +'<div class="mini" style="text-align:center;padding-bottom:6px">Tout est calculé localement depuis ton journal. Pour ajuster le programme lui-même : Journal → Reprendre avec Claude.</div>';
+    this.showA();
+  },
+  showA(){$("an-out").innerHTML=this.analyseHTML();},
+  showN(){$("an-out").innerHTML=this.nextHTML();},
+  showAch(){$("an-out").innerHTML=this.achCard();},
+  showC(){$("an-out").innerHTML=this.chargeHTML()||this.card("Charges","Enregistre une séance de force avec son RPE pour des recommandations.");}
+};
+
+App.boot();
+</script>
+</body>
+</html>
