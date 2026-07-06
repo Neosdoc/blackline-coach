@@ -601,6 +601,7 @@ var DEFAULT_PROGRAM={
   name:"1500 M — BLOC COURSE",
   nWeeks:5,
   alias:{1:8,2:9,3:10,4:11,5:12},
+  squatOdd:true, /* étoile calée sur l'exécution réelle : squat fait le lundi de S1 */
   meso:{1:"Reprise + Test 1500",2:"Réalisation",3:"Réalisation",4:"Réalisation",5:"Affûtage — Course"}
 };
 
@@ -608,7 +609,7 @@ var DEFAULT_PROGRAM={
    Bloc maintenu par Claude à chaque mise à jour du fichier.
    L'athlète le copie (Journal → REPRENDRE) et le colle au début d'une
    nouvelle conversation avec le fichier HTML : rien ne se perd. */
-var BRIEF_VERSION="v3.3 · maj 06/07/2026";
+var BRIEF_VERSION="v3.4 · maj 06/07/2026";
 /*<PRIVATE-BRIEF> — bloc remplacé par une version neutre dans la build publique (scripts/build_public.py) */
 var BRIEF=[
 "=== BLACKLINE COACH — BRIEF DE REPRISE ("+BRIEF_VERSION+") ===",
@@ -651,6 +652,7 @@ var BRIEF=[
 "- v3.1 : douze améliorations. (1) Adaptation automatique des ordres : Achille >3/10, force du matin RPE>=9 ou forme rouge -> la fiche s'ouvre en version adaptée (bandeau ORDRE MODIFIÉ, réversible d'un tap ; SDT maintenu si semaine paire, squat -> tempo -20 % si impaire). (2) Saisie des charges/temps réels par série (champ sur chaque ligne cochable) + rappel 'Dernière fois' à l'ouverture + e1RM estimé (Epley) avec mise à jour du 1RM profil en un tap. (3) Chrono de répétition en piste : cible affichée, STOP -> temps consigné + écart + repos enchaîné automatiquement. (4) Trackers HSR (objectif 3/sem, jauge sur l'accueil) et vélo Z1 mer+dim (séances optionnelles dans la semaine). (5) Mode terrain : affichage géant série par série, FAIT/CHRONO/PASSER. (6) Sparkline Achille 30 j sur l'accueil (seuil 3 marqué). (7) Graphique hebdo 8 semaines avec couloir ACWR 0,8-1,3 dessiné. (8) Bilan desktop 2 colonnes (>=1100 px). (9) Forme du jour : sommeil + jambes (2 taps) combinés à Achille/RPE veille/monotonie -> VERT/ORANGE/ROUGE alimentant l'adaptation. (10) Détection de dérives : RPE sous-seuil +1 sur 14 j, Achille en hausse 3 notes, monotonie >2 deux semaines. (11) Programme externalisable : champ program du JSON (name/nWeeks/weeks/toppct/reps/bo/deload/meso) importable comme un backup -> blocs futurs (Hyrox P2) sans réécrire l'app ; défaut = bloc 1500 m 12 sem intégré. (12) schemaVersion 4 : nouveaux champs hsr[], wellness[], program, et series[] optionnel sur les entrées du journal — migration auto depuis v3 et antérieurs, rien ne change dans les champs existants.",
 "- v3.2 : MODE BRIEFING — présentation animée plein écran (bouton sur l'Accueil), pensée pour montrer le système aux élèves/staff. 6 scènes alimentées par les données réelles : ouverture (grille topo qui se trace + wordmark), ordre de mission (objectif, J-x, VMA/CS en compteurs), architecture hebdo (les ordres glissent un à un), charge 8 semaines (barres en relief pseudo-3D + ligne ACWR qui se trace dans le couloir), garde-fous (4 jauges segmentées qui se remplissent), final tamponné 'EN ORDRE DE MARCHE'. Tap/espace = scène suivante, Échap = quitter, avance auto, plein écran auto, son discret coupable, prefers-reduced-motion respecté (rendu statique). Zéro dépendance, canvas 2D uniquement — l'app quotidienne reste sobre, le spectaculaire vit dans cet écran dédié. Aucun changement de données (schemaVersion 4 inchangé).",
 "- v3.3 : renumérotation du calendrier à la demande de l'athlète (06/07) — le bloc course s'affiche désormais S1→S5 au lieu de S8→S12 : 'ma semaine 1 est la semaine 1'. Contenus strictement inchangés via un alias interne (S1=ancienne S8 allégée + TEST 1500 jeudi, S2-S4=réalisation, S5=affûtage + course 08/08). L'étoile squat/SDT suit la parité d'origine : S1=SDT, S2=squat, etc. schemaVersion 5 : migration automatique week 8-12 -> 1-5 sur les données existantes. Le champ program importé reste prioritaire sur ce bloc par défaut.",
+"- v3.4 : étoile squat/SDT recalée sur l'exécution réelle — l'athlète a fait SQUAT le lundi de S1 (75 kg ×5 top + 3×5 @ 70, l'app affichait encore l'ancienne numérotation ce matin-là). Nouveau champ de programme squatOdd : squat les semaines impaires affichées -> S1=squat (fait), S2=SDT, S3=squat, S4=SDT, S5=affûtage. Les %1RM par semaine s'appliquent à la barre du jour, inchangés. e1RM squat du jour ~87,5 (75×5 facile, reprise prudente Achille 3/10) vs 1RM profil 110 : à surveiller au prochain squat lourd, autoréguler au RPE 8.",
 "",
 "EN ATTENTE / POINTS OUVERTS",
 "- Achille noté 4/10 après le déblocage poussette du 05/07 (6,06 km 6'18/km FC142 31°C RPE4). Protocole actif : note au réveil du 06/07 décide — <=3 : VMA prudente (2 premières @95%) ; >=4 : rapide remplacé par vélo Z2/footing souple, SDT du matin maintenu. Isométries mollet 4x45s en antalgique + Alfredson 2x/j.",
@@ -894,6 +896,8 @@ var App={
   progBO(w){var p=this.progObj();var v=p.bo?p.bo[w]:BO[this.aw(w)];return v!=null?v:2;},
   progDeload(w){var p=this.progObj();return p.deload?!!p.deload[w]:!!DELOAD[this.aw(w)];},
   progN(){return this.progObj().nWeeks||12;},
+  /* semaine squat ou SDT : le programme peut fixer sa propre parité, sinon parité d'origine */
+  progSquat(w){var p=this.progObj();if(p.squatOdd!=null)return p.squatOdd===(w%2===1);return this.aw(w)%2===1;},
   mesoL(w){var p=this.progObj();return (p.meso&&p.meso[w])||(p.name?p.name+" · S"+w:MESO(this.aw(w)));},
 
   async boot(){
@@ -1025,7 +1029,7 @@ var App={
         txt:"Feu orange : garde la séance mais coupe une répétition si le RPE dérive, et cale les 2 premières à 95 % de l'objectif."};
     }
     if(d.id==="forceA"&&a!=null&&a>3){
-      if(this.aw(this.P.week)%2===1){
+      if(this.progSquat(this.P.week)){
         var L=this.bb(this.P.squat,this.P.week),t80=r2(L[0]*0.8);
         return{mod:true,why:"ACHILLE "+a+"/10",
           txt:"Squat lourd → tempo 3-0-3 léger : 3×5 @ "+kg(t80)+" kg (−20 % du top prévu). Accessoires inchangés. Reprise du lourd quand ≤ 3/10.",
@@ -1177,7 +1181,7 @@ var App={
     if(this.aw(w)===12)return{sum:"Affûtage : squat léger 2×3 @ 70 % + mobilité",rest:120,ex:[
       {r:"Affûtage",n:"Squat léger",d:"2×3 @ "+kg(r2(this.P.squat*0.7))+" kg — vitesse maximale",x:"objectif : rester affûté sans fatigue",rest:120},
       {r:"Mobilité",n:"Hanches · chevilles · mollets",d:"10′ souple + Alfredson",rest:0}]};
-    var odd=this.aw(w)%2===1,r=this.progReps(w),bo=this.progBO(w);
+    var odd=this.progSquat(w),r=this.progReps(w),bo=this.progBO(w);
     var st=odd?"Squat":"Soulevé de terre", one=odd?this.P.squat:this.P.sdt, L=this.bb(one,w);
     var ex=[];
     ex.push({r:"Principal",n:st,d:"top set "+r+" @ "+kg(L[0])+" kg + "+bo+"×"+r+" @ "+kg(L[1])+" kg",x:"chaque rép explosive · stop série si la barre ralentit (~20 % de perte de vitesse)",rest:180});
