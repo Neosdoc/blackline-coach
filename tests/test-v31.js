@@ -89,21 +89,24 @@ const SHOT = p => path.join(__dirname, p);
   // ---------- (2) Force : saisie par série, save, dernière fois, e1RM ----------
   await page.click('.nav button[data-v="home"]');
   await page.waitForTimeout(200);
-  await page.click('.daycard.force >> nth=0'); // Force A (semaine 8 paire → SDT, pas d'adaptation squat)
+  await page.click('.daycard.force >> nth=0'); // Force A (S1 = squat → Achille 4 déclenche tempo -20 %)
   await page.waitForTimeout(300);
   wk = await page.textContent('#v-week');
-  ok('consigne SDT maintenu (Achille 4, semaine paire)', wk.includes('SDT maintenu'));
+  ok('adaptation squat→tempo (Achille 4, S1=squat)', wk.includes('ORDRE MODIFIÉ') && wk.includes('tempo'));
+  await page.click('#v-week .adapt .a-x'); // maintenir l'ordre initial pour tester le top set
+  await page.waitForTimeout(300);
+  wk = await page.textContent('#v-week');
+  ok('ordre initial force restauré', wk.includes('ADAPTATION DISPONIBLE') && wk.includes('Top set'));
   const topInput = await page.$('#v-week .vin[data-top="1"]');
   ok('champ charge sur le top set', !!topInput);
-  await topInput.fill('120'); // SDT 3 reps @ 120 → e1RM 132 > 150? non : profil sdt=150, 120*(1+3/30)=132 < 150 → à jour...
-  // pour déclencher la suggestion e1RM, saisis au-dessus du profil : 140*(1.1)=154 > 150+2.5
+  // squat 3 reps @ 140 → e1RM 154 > 1RM profil 110 → suggestion de mise à jour
   await topInput.fill('140');
   await page.fill('#bi-dur', '45');
   await page.fill('#bi-rpe', '8');
   await page.click('text=Terminer');
   await page.waitForTimeout(1100);
   const entry = await page.evaluate(() => App.journal[0]);
-  ok('series[] enregistré', entry.series && entry.series.length === 1 && entry.series[0].v === '140', JSON.stringify(entry.series));
+  ok('series[] enregistré', entry.series && entry.series.length === 1 && entry.series[0].v === '140' && entry.series[0].ex === 'Squat', JSON.stringify(entry.series));
   // rouvrir la même séance → Dernière fois
   await page.click('.nav button[data-v="home"]');
   await page.click('.daycard.force >> nth=0');
@@ -121,8 +124,8 @@ const SHOT = p => path.join(__dirname, p);
   ok('(9bis) e1RM estimé + bouton maj', ch.includes('e1RM estimé') && ch.includes('Mettre à jour le 1RM'), '');
   await page.click('text=Mettre à jour le 1RM');
   await page.waitForTimeout(300);
-  const sdt = await page.evaluate(() => App.P.sdt);
-  ok('1RM SDT mis à jour', sdt > 150, 'sdt=' + sdt);
+  const sq = await page.evaluate(() => App.P.squat);
+  ok('1RM squat mis à jour', sq > 110, 'squat=' + sq);
 
   // ---------- (4) Vélo Z1 : carte + séance ----------
   await page.click('.nav button[data-v="week"]');
