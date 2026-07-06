@@ -599,6 +599,7 @@ var SCHEMA_VERSION=4;
    L'athlète le copie (Journal → REPRENDRE) et le colle au début d'une
    nouvelle conversation avec le fichier HTML : rien ne se perd. */
 var BRIEF_VERSION="v3.2 · maj 05/07/2026";
+/*<PRIVATE-BRIEF> — bloc remplacé par une version neutre dans la build publique (scripts/build_public.py) */
 var BRIEF=[
 "=== BLACKLINE COACH — BRIEF DE REPRISE ("+BRIEF_VERSION+") ===",
 "",
@@ -645,6 +646,7 @@ var BRIEF=[
 "- À intégrer quand l'athlète confirme : vélo Z1 30-45' les mercredi + dimanche (marge aérobie n°1, coût Achille nul). Pas encore ajouté comme séance fixe, en attente de son feu vert sur la faisabilité matérielle (home-trainer ?).",
 "- Chaleur : 31°C dès 9h30 le 05/07 — courses d'aprem à gérer (hydratation, ombre, raccourcir si besoin). Acclimatation chaleur = opportunité à structurer.",
 ""].join("\n");
+/*</PRIVATE-BRIEF>*/
 
 /* ---------- program data ---------- */
 var MESO=function(w){return w<=4?"M1 · Accumulation":w<=8?"M2 · Intensification":"M3 · Réalisation";};
