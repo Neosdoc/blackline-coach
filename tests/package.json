@@ -1,0 +1,5 @@
+{
+ "name": "blackline-coach-tests",
+ "private": true,
+ "dependencies": { "playwright-core": "^1.49.0" }
+}
