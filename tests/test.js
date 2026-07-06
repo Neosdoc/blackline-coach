@@ -25,7 +25,7 @@ const SHOT = p => path.join(__dirname, p);
   await page.click('.daycard.force'); // Force A
   await page.waitForTimeout(300);
   const bandTxt = await page.textContent('#v-week .fiche .band');
-  ok("fiche d'ordre avec bande + ORD", /BLACKLINE \/\/ SUIVI PERSONNEL \/\/ S8/.test(bandTxt) && /ORD \d{4}-\d{2}-\d{2}\/A/.test(bandTxt), bandTxt);
+  ok("fiche d'ordre avec bande + ORD", /BLACKLINE \/\/ SUIVI PERSONNEL \/\/ S1/.test(bandTxt) && /ORD \d{4}-\d{2}-\d{2}\/A/.test(bandTxt), bandTxt);
   await page.screenshot({ path: SHOT('02-session-380.png') });
   // cocher 3 séries
   const sets = await page.$$('#v-week .set .sl');
@@ -59,7 +59,7 @@ const SHOT = p => path.join(__dirname, p);
 
   // ---------- Persistance : fermeture → réouverture ----------
   const stored = await page.evaluate(() => localStorage.getItem('blc:data'));
-  ok('blc:data écrit avec schemaVersion 4', stored && JSON.parse(stored).schemaVersion === 4);
+  ok('blc:data écrit avec schemaVersion 5', stored && JSON.parse(stored).schemaVersion === 5);
   await page.close();
   page = await ctx.newPage();
   await page.goto(FILE);
@@ -94,7 +94,7 @@ const SHOT = p => path.join(__dirname, p);
     App.applyImport('merge');
     return { migratedVersion: d.schemaVersion, before, after: App.journal.length, ach: App.achilles.length, obj: App.P.obj };
   });
-  ok('backup v2.x migré vers schéma 4', importResult.migratedVersion === 4);
+  ok('backup v2.x migré vers schéma 5', importResult.migratedVersion === 5);
   ok('fusion : séance importée ajoutée', importResult.after === importResult.before + 1, importResult.before + '→' + importResult.after);
   ok('fusion : profil actuel conservé', importResult.obj === "4'10", importResult.obj);
   const replaceResult = await page.evaluate(() => {
@@ -130,7 +130,7 @@ const SHOT = p => path.join(__dirname, p);
     legacy: localStorage.getItem('blc:journal') !== null,
     home: document.getElementById('v-home').textContent
   }));
-  ok('migration héritage : blc:data créé', mig.data && mig.data.schemaVersion === 4 && mig.data.journal.length === 1);
+  ok('migration héritage : blc:data créé', mig.data && mig.data.schemaVersion === 5 && mig.data.journal.length === 1);
   ok('migration héritage : anciennes clés gardées en filet', mig.legacy);
   ok('migration héritage : profil repris (VMA 19,8)', mig.home.includes('19,8'));
   ok('migration héritage : objectif repris', mig.home.includes("4'12"));
